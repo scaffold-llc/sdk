@@ -1,0 +1,56 @@
+{
+  "name": "@scaffold-llc/sdk",
+  "version": "0.2.0",
+  "description": "The TypeScript SDK for Scaffold: every command as a typed method.",
+  "license": "MIT",
+  "author": "SPINZ BUSINESS SOLUTIONS LTD",
+  "homepage": "https://scaffold.llc/docs/sdk",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/scaffold-llc/sdk.git"
+  },
+  "keywords": [
+    "scaffold",
+    "sdk",
+    "api",
+    "mcp"
+  ],
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20"
+  },
+  "devEngines": {
+    "runtime": {
+      "name": "node",
+      "version": ">=22.12",
+      "onFail": "error"
+    }
+  },
+  "scripts": {
+    "generate": "node scripts/generate.mjs",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc -p tsconfig.build.json",
+    "test": "vitest run",
+    "prepublishOnly": "npm run build"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.6",
+    "openapi-typescript": "7.13.0",
+    "typescript": "5.9.3",
+    "vitest": "5.0.5"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
+}
