@@ -1049,7 +1049,7 @@ export interface paths {
         /** @description List a workspace's projects, leaving out deleted ones. */
         get: operations["project.list"];
         put?: never;
-        /** @description Create a project in a workspace. Refused while a deleted one with the slug can be restored, unless ignore_restorable. */
+        /** @description Create a project in a workspace. Refused while a deleted one with the slug can be restored, unless ignore_restorable. A Free workspace holds 2 projects; server templates need the Paid plan. */
         post: operations["project.create"];
         delete?: never;
         options?: never;
@@ -1118,7 +1118,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Owner only: restore a deleted project within 24 hours of deleting it. */
+        /** @description Owner only: restore a deleted project within 24 hours of deleting it, unless its Free workspace holds its 2 projects already. */
         post: operations["project.restore"];
         delete?: never;
         options?: never;
@@ -1238,7 +1238,7 @@ export interface paths {
         };
         /** @description List a project's uploads of its code, newest first. An upload's sha256 is all deploy.create needs to build it. */
         get: operations["source.list"];
-        /** @description Upload a project's code as one zip, stored once by its hash. Only the newest 5 uploads are kept, and uploading one again makes it the newest. */
+        /** @description Upload a project's code as one zip, stored once by its hash. Only the newest 5 uploads are kept, and uploading one again makes it the newest. The app's files sit at the zip's root, not in a folder: index.html for a static site, or package.json with a start script or main file for a Node app, without node_modules. */
         put: operations["source.upload"];
         post?: never;
         delete?: never;
@@ -5044,7 +5044,7 @@ export interface paths {
         /** @description List a project's custom domains, oldest first, with where each stands, the DNS records it needs and when its certificate renews. */
         get: operations["domain.list"];
         put?: never;
-        /** @description Add a custom domain to a project's app. It waits for the DNS records it answers: a CNAME to Scaffold, or an A record at the apex, and a TXT record proving it is yours. Other projects' unverified claims never block it: the first project to verify the domain takes it from the rest, and a claim that never verifies expires after 7 days. */
+        /** @description Add a custom domain to a project's app. A Free workspace has 1 custom domain; more need the Paid plan. It waits for the DNS records it answers: a CNAME to Scaffold, or an A record at the apex, and a TXT record proving it is yours. Other projects' unverified claims never block it: the first project to verify the domain takes it from the rest, and a claim that never verifies expires after 7 days. */
         post: operations["domain.add"];
         delete?: never;
         options?: never;
@@ -5061,7 +5061,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Check a custom domain's DNS now. Once it points at Scaffold with its TXT record it is verified: it serves the project's live deploy and gets its certificate on its first visit, and other projects' unverified claims on it are removed. A wrong record is named with its fix. Scaffold rechecks verified domains daily: one whose records are gone 3 days goes back to waiting and stops serving. A verified domain whose records point away from Scaffold is marked so, with the problem found, and gets no new certificate until a check finds them pointing back. */
+        /** @description Check a custom domain's DNS now. Once it points at Scaffold with its TXT record it is verified: it serves the project's live deploy and gets its certificate on its first visit, and other projects' unverified claims on it are removed. A wrong or missing record is named with its fix. Scaffold rechecks verified domains daily: one whose records are gone 3 days goes back to waiting and stops serving. A verified domain whose records point away from Scaffold is marked so, with the problem found, and gets no new certificate until a check finds them pointing back. */
         post: operations["domain.check"];
         delete?: never;
         options?: never;
@@ -5268,7 +5268,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Move a project to another workspace, owning both. Its deploys, domains, env, database, files, cron jobs, webhooks and app users go with it and nothing goes offline. For someone else's workspace, make a claim link. */
+        /** @description Move a project to another workspace, owning both. Its deploys, domains, env, database, files, cron jobs, webhooks and app users go with it and nothing goes offline. For someone else's workspace, make a claim link. A Free workspace takes no server code and holds 2 projects and 1 custom domain. */
         post: operations["project.move"];
         delete?: never;
         options?: never;
@@ -7093,7 +7093,10 @@ export interface components {
             id: components["schemas"]["DomainId"];
             /** @description Since when a verified domain's records point away from Scaffold, as `problem` says. It gets no new certificate until they point back. @default null */
             pointed_away_since?: string | null;
-            /** @description What the last check found wrong and how to fix it, for a wrong domain or one pointed away. */
+            /**
+             * @description What the last check found wrong and how to fix it, for a wrong domain or one pointed away.
+             *     For a waiting one, which record is still missing and the value to set.
+             */
             problem?: string | null;
             project_id: components["schemas"]["ProjectId"];
             /** @description The records the domain needs. Empty when this Scaffold has no edge for custom domains. */

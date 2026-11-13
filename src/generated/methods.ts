@@ -390,7 +390,7 @@ export interface Methods {
     member_remove(input: operations["workspace.member_remove"]["parameters"]["path"], options?: WriteOptions): Promise<operations["workspace.member_remove"]["responses"][200]["content"]["application/json"]>;
   };
   project: {
-    /** Create a project in a workspace. Refused while a deleted one with the slug can be restored, unless ignore_restorable. `POST /v1/projects` */
+    /** Create a project in a workspace. Refused while a deleted one with the slug can be restored, unless ignore_restorable. A Free workspace holds 2 projects; server templates need the Paid plan. `POST /v1/projects` */
     create(input: NonNullable<operations["project.create"]["requestBody"]>["content"]["application/json"], options?: WriteOptions): Promise<operations["project.create"]["responses"][200]["content"]["application/json"]>;
     /** List a workspace's projects, leaving out deleted ones. `GET /v1/projects` */
     list(input: NonNullable<operations["project.list"]["parameters"]["query"]>): List<operations["project.list"]["responses"][200]["content"]["application/json"], operations["project.list"]["responses"][200]["content"]["application/json"]["data"][number]>;
@@ -402,7 +402,7 @@ export interface Methods {
     address_check(input: NonNullable<operations["project.address_check"]["parameters"]["query"]>): Promise<operations["project.address_check"]["responses"][200]["content"]["application/json"]>;
     /** Owner only: delete a project after a 24 hour grace period. `DELETE /v1/projects/{project_id}` */
     delete(input: operations["project.delete"]["parameters"]["path"], options?: WriteOptions): Promise<operations["project.delete"]["responses"][200]["content"]["application/json"]>;
-    /** Owner only: restore a deleted project within 24 hours of deleting it. `POST /v1/projects/{project_id}/restore` */
+    /** Owner only: restore a deleted project within 24 hours of deleting it, unless its Free workspace holds its 2 projects already. `POST /v1/projects/{project_id}/restore` */
     restore(input: operations["project.restore"]["parameters"]["path"], options?: WriteOptions): Promise<operations["project.restore"]["responses"][200]["content"]["application/json"]>;
     /** Owner only: erase a deleted project now instead of when its 24 hours run out, with its deploys, env, domains and database. `POST /v1/projects/{project_id}/erase` */
     erase(input: operations["project.erase"]["parameters"]["path"], options?: WriteOptions): Promise<operations["project.erase"]["responses"][200]["content"]["application/json"]>;
@@ -418,7 +418,7 @@ export interface Methods {
     alert_set(input: operations["project.alert_set"]["parameters"]["path"] & NonNullable<operations["project.alert_set"]["requestBody"]>["content"]["application/json"], options?: WriteOptions): Promise<operations["project.alert_set"]["responses"][200]["content"]["application/json"]>;
     /** Turn a project's maintenance mode on or off, as its owner. While on, its address and domains show a maintenance page and its deploys keep running on their own addresses. `PUT /v1/projects/{project_id}/maintenance` */
     maintenance_set(input: operations["project.maintenance_set"]["parameters"]["path"] & NonNullable<operations["project.maintenance_set"]["requestBody"]>["content"]["application/json"], options?: WriteOptions): Promise<operations["project.maintenance_set"]["responses"][200]["content"]["application/json"]>;
-    /** Move a project to another workspace, owning both. Its deploys, domains, env, database, files, cron jobs, webhooks and app users go with it and nothing goes offline. For someone else's workspace, make a claim link. `POST /v1/projects/{project_id}/move` */
+    /** Move a project to another workspace, owning both. Its deploys, domains, env, database, files, cron jobs, webhooks and app users go with it and nothing goes offline. For someone else's workspace, make a claim link. A Free workspace takes no server code and holds 2 projects and 1 custom domain. `POST /v1/projects/{project_id}/move` */
     move(input: operations["project.move"]["parameters"]["path"] & NonNullable<operations["project.move"]["requestBody"]>["content"]["application/json"], options?: WriteOptions): Promise<operations["project.move"]["responses"][200]["content"]["application/json"]>;
     /** Make a claim link for a project you own, in place of any open one. The owner of another workspace who opens it moves the project there, once, within 7 days. Its secret is answered only once. `POST /v1/projects/{project_id}/claim-link` */
     claim_link_create(input: operations["project.claim_link_create"]["parameters"]["path"]): Promise<operations["project.claim_link_create"]["responses"][200]["content"]["application/json"]>;
@@ -436,7 +436,7 @@ export interface Methods {
     restore(input: operations["env.restore"]["parameters"]["path"] & NonNullable<operations["env.restore"]["requestBody"]>["content"]["application/json"], options?: WriteOptions): Promise<operations["env.restore"]["responses"][200]["content"]["application/json"]>;
   };
   source: {
-    /** Upload a project's code as one zip, stored once by its hash. Only the newest 5 uploads are kept, and uploading one again makes it the newest. `PUT /v1/projects/{project_id}/sources` */
+    /** Upload a project's code as one zip, stored once by its hash. Only the newest 5 uploads are kept, and uploading one again makes it the newest. The app's files sit at the zip's root, not in a folder: index.html for a static site, or package.json with a start script or main file for a Node app, without node_modules. `PUT /v1/projects/{project_id}/sources` */
     upload(input: operations["source.upload"]["parameters"]["path"] & { archive: Blob | ArrayBuffer | Uint8Array }, options?: WriteOptions): Promise<operations["source.upload"]["responses"][200]["content"]["application/json"]>;
     /** Delete a project's upload and its file. source.list gives each upload's sha256. `DELETE /v1/projects/{project_id}/sources/{sha256}` */
     delete(input: operations["source.delete"]["parameters"]["path"], options?: WriteOptions): Promise<operations["source.delete"]["responses"][200]["content"]["application/json"]>;
@@ -878,11 +878,11 @@ export interface Methods {
     logs(input: operations["deploy.logs"]["parameters"]["path"] & NonNullable<operations["deploy.logs"]["parameters"]["query"]>): Promise<operations["deploy.logs"]["responses"][200]["content"]["application/json"]>;
   };
   domain: {
-    /** Add a custom domain to a project's app. It waits for the DNS records it answers: a CNAME to Scaffold, or an A record at the apex, and a TXT record proving it is yours. Other projects' unverified claims never block it: the first project to verify the domain takes it from the rest, and a claim that never verifies expires after 7 days. `POST /v1/projects/{project_id}/domains` */
+    /** Add a custom domain to a project's app. A Free workspace has 1 custom domain; more need the Paid plan. It waits for the DNS records it answers: a CNAME to Scaffold, or an A record at the apex, and a TXT record proving it is yours. Other projects' unverified claims never block it: the first project to verify the domain takes it from the rest, and a claim that never verifies expires after 7 days. `POST /v1/projects/{project_id}/domains` */
     add(input: operations["domain.add"]["parameters"]["path"] & NonNullable<operations["domain.add"]["requestBody"]>["content"]["application/json"], options?: WriteOptions): Promise<operations["domain.add"]["responses"][200]["content"]["application/json"]>;
     /** List a project's custom domains, oldest first, with where each stands, the DNS records it needs and when its certificate renews. `GET /v1/projects/{project_id}/domains` */
     list(input: operations["domain.list"]["parameters"]["path"]): Promise<operations["domain.list"]["responses"][200]["content"]["application/json"]>;
-    /** Check a custom domain's DNS now. Once it points at Scaffold with its TXT record it is verified: it serves the project's live deploy and gets its certificate on its first visit, and other projects' unverified claims on it are removed. A wrong record is named with its fix. Scaffold rechecks verified domains daily: one whose records are gone 3 days goes back to waiting and stops serving. A verified domain whose records point away from Scaffold is marked so, with the problem found, and gets no new certificate until a check finds them pointing back. `POST /v1/domains/{domain_id}/check` */
+    /** Check a custom domain's DNS now. Once it points at Scaffold with its TXT record it is verified: it serves the project's live deploy and gets its certificate on its first visit, and other projects' unverified claims on it are removed. A wrong or missing record is named with its fix. Scaffold rechecks verified domains daily: one whose records are gone 3 days goes back to waiting and stops serving. A verified domain whose records point away from Scaffold is marked so, with the problem found, and gets no new certificate until a check finds them pointing back. `POST /v1/domains/{domain_id}/check` */
     check(input: operations["domain.check"]["parameters"]["path"], options?: WriteOptions): Promise<operations["domain.check"]["responses"][200]["content"]["application/json"]>;
     /** Remove a custom domain from its project. The app stops answering there at once, its certificate is deleted within a day and never renewed, and any project can add it again with domain.add. `DELETE /v1/domains/{domain_id}` */
     remove(input: operations["domain.remove"]["parameters"]["path"], options?: WriteOptions): Promise<operations["domain.remove"]["responses"][200]["content"]["application/json"]>;
