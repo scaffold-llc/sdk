@@ -305,6 +305,7 @@ export const COMMANDS = {
   },
   status: {
     get: { method: "GET", path: "/v1/status" },
+    version_get: { method: "GET", path: "/v1/version" },
     incident_list: { method: "GET", path: "/v1/status/incidents" },
     incident_get: { method: "GET", path: "/v1/status/incidents/{incident_id}" },
   },
@@ -345,7 +346,7 @@ export interface Methods {
     get(input: operations["image.get"]["parameters"]["path"]): Promise<Blob>;
   };
   workspace: {
-    /** Create a workspace with you as its owner, named 1 to 80 characters and unlike your other workspaces. `POST /v1/workspaces` */
+    /** Create a workspace on Free with you as its owner, named 1 to 80 characters and unlike your other workspaces. Each person owns one Free workspace: while you own one, upgrade it before creating another. Your first workspace gets your 50 starter credits once your email is verified. `POST /v1/workspaces` */
     create(input: NonNullable<operations["workspace.create"]["requestBody"]>["content"]["application/json"], options?: WriteOptions): Promise<operations["workspace.create"]["responses"][200]["content"]["application/json"]>;
     /** Rename a workspace you own. Its slug stays the same. `POST /v1/workspaces/{workspace_id}/rename` */
     rename(input: operations["workspace.rename"]["parameters"]["path"] & NonNullable<operations["workspace.rename"]["requestBody"]>["content"]["application/json"], options?: WriteOptions): Promise<operations["workspace.rename"]["responses"][200]["content"]["application/json"]>;
@@ -353,7 +354,7 @@ export interface Methods {
     logo_set(input: operations["workspace.logo_set"]["parameters"]["path"] & NonNullable<operations["workspace.logo_set"]["requestBody"]>["content"]["application/json"], options?: WriteOptions): Promise<operations["workspace.logo_set"]["responses"][200]["content"]["application/json"]>;
     /** Delete a workspace you own, unless a paid plan renews. `DELETE /v1/workspaces/{workspace_id}` */
     delete(input: operations["workspace.delete"]["parameters"]["path"], options?: WriteOptions): Promise<operations["workspace.delete"]["responses"][200]["content"]["application/json"]>;
-    /** Undo workspace.delete within 24 hours. `POST /v1/workspaces/{workspace_id}/restore` */
+    /** Undo workspace.delete within 24 hours. A Free one waits while you own another Free workspace, as each person owns one. `POST /v1/workspaces/{workspace_id}/restore` */
     restore(input: operations["workspace.restore"]["parameters"]["path"], options?: WriteOptions): Promise<operations["workspace.restore"]["responses"][200]["content"]["application/json"]>;
     /** Zip a workspace you own. workspace.export_get shows its progress and workspace.export_download returns the zip once it is ready. `POST /v1/workspaces/{workspace_id}/exports` */
     export_start(input: operations["workspace.export_start"]["parameters"]["path"], options?: WriteOptions): Promise<operations["workspace.export_start"]["responses"][200]["content"]["application/json"]>;
@@ -855,13 +856,15 @@ export interface Methods {
   status: {
     /** Show Scaffold's status overall and per component, open incidents, planned maintenance and console notices. Needs no sign-in. `GET /v1/status` */
     get(input?: Record<string, never>): Promise<operations["status.get"]["responses"][200]["content"]["application/json"]>;
+    /** Show which build of Scaffold answers: its git commit and when it was built. Needs no sign-in. `GET /v1/version` */
+    version_get(input?: Record<string, never>): Promise<operations["status.version_get"]["responses"][200]["content"]["application/json"]>;
     /** List incidents and maintenance open in the last 90 days, newest first, with updates. Needs no sign-in. `GET /v1/status/incidents` */
     incident_list(input?: NonNullable<operations["status.incident_list"]["parameters"]["query"]>): Promise<operations["status.incident_list"]["responses"][200]["content"]["application/json"]>;
     /** Show one incident or maintenance window with every update and any write-up. Needs no sign-in. `GET /v1/status/incidents/{incident_id}` */
     incident_get(input: operations["status.incident_get"]["parameters"]["path"]): Promise<operations["status.incident_get"]["responses"][200]["content"]["application/json"]>;
   };
   deploy: {
-    /** Build a project's upload in a sandbox, a Node app or a static site, and put it live once it serves. It needs only the upload's sha256 from source.list, or none for the newest, and answers the deploy with its status and URL. The live deploy stays ready for deploy.rollback. A Node app needs the Paid plan and takes the env as it is now, plus DATABASE_URL; an optional release command runs first, after a dump of the database. A deploy of the project not yet live fails in its favour. `POST /v1/projects/{project_id}/deploys` */
+    /** Build a project's upload in a sandbox, a Node app or a static site, and put it live once it serves. It needs only the upload's sha256 from source.list, or none for the newest, and answers the deploy with its status and URL. The live deploy stays ready for deploy.rollback. A Node app needs the Paid plan and takes the env as it is now, plus DATABASE_URL; an optional release command runs first, after a dump of the database. A deploy of the project not yet live fails in its favour. package.json "scaffold": {"kind": "worker"} makes a worker: no web page, never sleeps, Paid only. `POST /v1/projects/{project_id}/deploys` */
     create(input: operations["deploy.create"]["parameters"]["path"] & NonNullable<operations["deploy.create"]["requestBody"]>["content"]["application/json"], options?: WriteOptions): Promise<operations["deploy.create"]["responses"][200]["content"]["application/json"]>;
     /** List a project's deploys, newest first. `GET /v1/projects/{project_id}/deploys` */
     list(input: operations["deploy.list"]["parameters"]["path"]): Promise<operations["deploy.list"]["responses"][200]["content"]["application/json"]>;

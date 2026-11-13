@@ -1,7 +1,8 @@
 name: Release
 
 # Every change the platform repository mirrors here that touches the package is a release.
-# npm trusted publishing signs in with this workflow's OIDC token, so no npm token is stored.
+# npm publishes with the NPM_TOKEN secret, a granular token with publish rights on the package;
+# the workflow's OIDC token signs the provenance.
 on:
   push:
     branches: [main]
@@ -22,11 +23,11 @@ jobs:
         with:
           node-version: 24
           registry-url: https://registry.npmjs.org
-      # Trusted publishing needs npm 11.5.1 or later.
-      - run: npm install --global npm@^11.5.1
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
       - name: Version as major.minor from package.json and this run's number
         run: npm version --no-git-tag-version "$(node -p 'require("./package.json").version.split(".").slice(0, 2).join(".")').${{ github.run_number }}"
       - run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

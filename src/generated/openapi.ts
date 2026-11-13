@@ -561,6 +561,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/people/{person_id}/erase": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Platform only: close and erase a person's account at once, for a reason code, as when its owner is under 16 or asked in writing. Workspaces only they were in are erased and their plans canceled. A workspace they owned alone beside other members passes to its longest-standing member, who is emailed; its plan carries on without their payment details. */
+        post: operations["account.erase"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/account/terms-accept": {
         parameters: {
             query?: never;
@@ -629,6 +646,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/account/email-verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Email a link that verifies your email, which your 50 starter credits wait for. Sign-up sends one; this sends another. It works once, for 24 hours, and a newer one replaces it; asking again within a minute sends nothing more. Console only. */
+        post: operations["account.email_verify_send"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/account/email-verify/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Verify your email with the secret of the link emailed to it. Your Free workspace gets your 50 starter credits then, once per person; without a workspace yet, your first gets them. A used, replaced or expired link is refused with why. */
+        post: operations["account.email_verify"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/workspaces": {
         parameters: {
             query?: never;
@@ -639,7 +690,7 @@ export interface paths {
         /** @description List your workspaces and your role in each. */
         get: operations["workspace.list"];
         put?: never;
-        /** @description Create a workspace with you as its owner, named 1 to 80 characters and unlike your other workspaces. */
+        /** @description Create a workspace on Free with you as its owner, named 1 to 80 characters and unlike your other workspaces. Each person owns one Free workspace: while you own one, upgrade it before creating another. Your first workspace gets your 50 starter credits once your email is verified. */
         post: operations["workspace.create"];
         delete?: never;
         options?: never;
@@ -707,7 +758,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Undo workspace.delete within 24 hours. */
+        /** @description Undo workspace.delete within 24 hours. A Free one waits while you own another Free workspace, as each person owns one. */
         post: operations["workspace.restore"];
         delete?: never;
         options?: never;
@@ -4641,6 +4692,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/version": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Show which build of Scaffold answers: its git commit and when it was built. Needs no sign-in. */
+        get: operations["status.version_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/status/incidents": {
         parameters: {
             query?: never;
@@ -4890,7 +4958,7 @@ export interface paths {
         /** @description List a project's deploys, newest first. */
         get: operations["deploy.list"];
         put?: never;
-        /** @description Build a project's upload in a sandbox, a Node app or a static site, and put it live once it serves. It needs only the upload's sha256 from source.list, or none for the newest, and answers the deploy with its status and URL. The live deploy stays ready for deploy.rollback. A Node app needs the Paid plan and takes the env as it is now, plus DATABASE_URL; an optional release command runs first, after a dump of the database. A deploy of the project not yet live fails in its favour. */
+        /** @description Build a project's upload in a sandbox, a Node app or a static site, and put it live once it serves. It needs only the upload's sha256 from source.list, or none for the newest, and answers the deploy with its status and URL. The live deploy stays ready for deploy.rollback. A Node app needs the Paid plan and takes the env as it is now, plus DATABASE_URL; an optional release command runs first, after a dump of the database. A deploy of the project not yet live fails in its favour. package.json "scaffold": {"kind": "worker"} makes a worker: no web page, never sleeps, Paid only. */
         post: operations["deploy.create"];
         delete?: never;
         options?: never;
@@ -5291,6 +5359,11 @@ export interface components {
             email: string;
             /** @description Set while a new address waits for the link `account.email_change_start` sent there. */
             email_change?: components["schemas"]["PendingEmailChange"] | null;
+            /**
+             * @description Whether the person proved they read `email`, by opening a link sent there or signing in
+             *     through a provider that verified it. `account.email_verify_send` sends a link.
+             */
+            email_verified: boolean;
             /** @description Whether the person can sign in with a password. */
             has_password: boolean;
             id: components["schemas"]["PersonId"];
@@ -5306,6 +5379,11 @@ export interface components {
             providers: components["schemas"]["LinkedProvider"][];
             /** @description The console session the request came with; None for a token or an app. */
             session_id?: components["schemas"]["SessionId"] | null;
+            /**
+             * @description Whether the person got their one starter grant. Until then, verifying the email grants
+             *     it to the Free workspace they own, or to their first one.
+             */
+            starter_credits_granted: boolean;
             /** @description Set when the Terms or Privacy Policy changed since the person last accepted them: the versions the console asks them to accept with `account.terms_accept`. Until then their writes answer `terms_not_accepted`. */
             terms_to_accept?: components["schemas"]["TermsVersions"] | null;
         };
@@ -5484,6 +5562,21 @@ export interface components {
         };
         /** @enum {string} */
         Alignment: "left" | "center" | "right" | "justify";
+        /** @description How much of one thing a workspace uses, against its plan's limit. */
+        Allowance: {
+            /**
+             * @description When some of what is used stops counting: the oldest deploy of the last 24 hours turns
+             *     a day old, or the month of build minutes ends. None when nothing counts down.
+             */
+            frees_at?: string | null;
+            /**
+             * Format: int64
+             * @description None when the plan sets no limit.
+             */
+            limit?: number | null;
+            /** Format: int64 */
+            used: number;
+        };
         AnsweredInput: {
             /** Format: int64 */
             call: number;
@@ -5951,7 +6044,7 @@ export interface components {
         /** @description When apps see a change. A running app keeps the values it started with. */
         Applies: "next_deploy" | "new_deploy";
         /** @description Why a run asks a person before a change. */
-        ApprovalNeed: "archiving" | "every_change" | "many_changes" | "closing_task";
+        ApprovalNeed: "archiving" | "every_change" | "many_changes" | "closing_task" | "deploying" | "rolling_back";
         ApprovalStatus: "waiting" | "approved" | "denied" | "expired" | "cancelled";
         /** @description The body half of `run.approve`'s input. */
         ApproveBody: {
@@ -6034,6 +6127,8 @@ export interface components {
             plan: components["schemas"]["Plan"];
             /** @description The subscription that pays for the plan, else the latest one. None if there never was one. */
             subscription?: components["schemas"]["Subscription"] | null;
+            /** @description What the workspace uses of what its plan limits. Answers logged before it read none. @default { "badge": false, "build_minutes": { "frees_at": null, "limit": null, "used": 0 }, "custom_domains": { "frees_at": null, "limit": null, "used": 0 }, "deploys_today": { "frees_at": null, "limit": null, "used": 0 }, "paid_build_minutes": 0, "projects": { "frees_at": null, "limit": null, "used": 0 }, "sleep_after_idle_secs": 0 } */
+            usage?: components["schemas"]["PlanUsage"];
             /**
              * @description The payment whose dispute the refunds of the workspace's withdrawal wait for, as
              *     billing.withdraw answered. None once the dispute ends and the withdrawal finishes.
@@ -6791,8 +6886,11 @@ export interface components {
         /** @description Which deploys the host puts to sleep first when it runs short of memory: every one but the live one is a preview. @enum {string} */
         DeployEvictionClass: "preview" | "paid";
         DeployId: string;
-        /** @description What a deploy runs as, which its build decides: web until it is built. */
-        DeployKind: "web" | "static";
+        /**
+         * @description What a deploy runs as, which its build decides: web until it is built, unless it is a
+         *     redeploy, which runs as the build it reuses.
+         */
+        DeployKind: "web" | "worker" | "static";
         DeployLogKind: "runtime" | "build";
         DeployLogLine: {
             /** @description When its host received a runtime line, or a build step happened. */
@@ -6854,6 +6952,8 @@ export interface components {
              * @description Seconds since a request to it last began or ended.
              */
             idle_secs?: number | null;
+            /** @description A worker never sleeps, as no visit can wake it. */
+            kind: components["schemas"]["DeployKind"];
             /** @description Why the host could not run it as it should, if it could not. */
             last_error?: string | null;
             /**
@@ -7014,6 +7114,15 @@ export interface components {
         EmailChanged: {
             email: string;
         };
+        /** @description The email a verification link proved, shown to whoever opened it. */
+        EmailVerified: {
+            email: string;
+            /**
+             * @description Whether the person's starter credits arrived with it, in the Free workspace they own.
+             *     False when they got them before, or own no workspace yet: then their first gets them.
+             */
+            starter_credits_granted: boolean;
+        };
         EndReason: "signed_out" | "signed_out_elsewhere" | "account_deleted" | "password_reset" | "expired";
         /** @description Why a session no longer signs its person in, and since when. */
         Ended: {
@@ -7070,10 +7179,28 @@ export interface components {
             /** @constant */
             provided_by: "scaffold";
         });
+        EraseBody: {
+            reason: components["schemas"]["ErasureReason"];
+        };
         Erased: {
             erased_at: string;
             project_id: components["schemas"]["ProjectId"];
         };
+        /** @description An account an operator erased, and what became of its workspaces. */
+        ErasedAccount: {
+            erased_at: string;
+            /** @description The workspaces only the person was in, erased with them. */
+            erased_workspaces: components["schemas"]["WorkspaceId"][];
+            /**
+             * @description The workspaces the person owned alone beside other members, each handed to its
+             *     longest-standing member, who was emailed.
+             */
+            ownership_passed: components["schemas"]["Transferred"][];
+            person_id: components["schemas"]["PersonId"];
+            reason: components["schemas"]["ErasureReason"];
+        };
+        /** @description Why an operator erased an account. A code only, as a suspension's reason is. */
+        ErasureReason: "under_16" | "data_subject_request";
         /** @description Every failed request answers with this body. */
         ErrorBody: {
             error: {
@@ -8424,6 +8551,29 @@ export interface components {
             /** @description Tax included. */
             refund: components["schemas"]["Money"];
         };
+        /** @description The workspace's use of what its plan limits. */
+        PlanUsage: {
+            /** @description Whether HTML pages its apps serve show the small Built on Scaffold badge. */
+            badge: boolean;
+            /** @description Build minutes this calendar month (UTC), each build's seconds summed and rounded up. */
+            build_minutes: components["schemas"]["Allowance"];
+            /** @description Custom domains on its projects, verified or not. */
+            custom_domains: components["schemas"]["Allowance"];
+            /** @description Deploys made in the last 24 hours. */
+            deploys_today: components["schemas"]["Allowance"];
+            /**
+             * Format: int64
+             * @description Paid's build minutes a month, whatever the plan, so Free can show what upgrading gives.
+             */
+            paid_build_minutes: number;
+            /** @description Projects not deleted. */
+            projects: components["schemas"]["Allowance"];
+            /**
+             * Format: uint32
+             * @description Idle seconds after which a live app sleeps.
+             */
+            sleep_after_idle_secs: number;
+        };
         Portal: {
             /** @description Stripe's billing portal, to change the card, switch interval, see invoices or cancel. */
             portal_url: string;
@@ -9239,6 +9389,8 @@ export interface components {
             call: number;
             /** @description The MCP action it waits to run, like record_bulk_archive. */
             command: string;
+            /** @description What a deploy or rollback would put live. None for any other change. */
+            deploy?: components["schemas"]["RunApprovalDeploy"] | null;
             /** @description What else the agent wrote: what it found and why. */
             details?: string | null;
             expires_at: string;
@@ -9261,6 +9413,26 @@ export interface components {
              */
             url?: string;
             workspace_id: components["schemas"]["WorkspaceId"];
+        };
+        /**
+         * @description What a deploy or rollback an agent asks for would put live, as its write decided it. The
+         *     approved write runs only while it would still do exactly this.
+         */
+        RunApprovalDeploy: {
+            project_id: components["schemas"]["ProjectId"];
+            /** @description deploy.create's command run before it goes live, after a dump of the database. */
+            release_command?: string | null;
+            /** @description The deploy live now, which this replaces. */
+            replaces?: components["schemas"]["DeployId"] | null;
+            /**
+             * @description deploy.rollback also puts back the database as it was while `rollback_to` was live,
+             *     losing the rows written since.
+             */
+            restore_database: boolean;
+            /** @description deploy.rollback's earlier deploy, going back live. */
+            rollback_to?: components["schemas"]["DeployId"] | null;
+            /** @description The upload deploy.create builds, or the one the deploy going back live was built from. */
+            source_sha256: string;
         };
         RunApprovalSubject: {
             id: components["schemas"]["AnyId"];
@@ -9404,6 +9576,16 @@ export interface components {
             /** Format: int64 */
             leg: number;
             waiting?: components["schemas"]["WaitingInput"] | null;
+        };
+        /**
+         * @description The build that answers. The release job stamps both at compile time, so any other build
+         *     answers nulls.
+         */
+        ScaffoldVersion: {
+            /** @description When the build was made, in UTC. */
+            built_at?: string | null;
+            /** @description The full git commit SHA the build was made from. */
+            commit_sha?: string | null;
         };
         Schedule: {
             agent: components["schemas"]["AgentKind"];
@@ -10791,6 +10973,8 @@ export interface components {
         WaitingInput: {
             /** @description The MCP action it waits to run, like record_bulk_archive. */
             command: string;
+            /** @description What a deploy or rollback would put live. */
+            deploy?: components["schemas"]["RunApprovalDeploy"] | null;
             need: components["schemas"]["ApprovalNeed"];
             /** @description What the change would write. */
             subjects: components["schemas"]["AnyId"][];
@@ -12853,6 +13037,64 @@ export interface operations {
             };
         };
     };
+    "account.erase": {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Retrying with the same key within 24 hours returns the first result; after that the key is forgotten and the request runs again. The same key with another request answers 422 idempotency_key_reused. A command whose secret is shown only once answers 409 secret_shown instead, naming any token it created, and never shows the secret again. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                person_id: components["schemas"]["PersonId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EraseBody"];
+            };
+        };
+        responses: {
+            /** @description What the command answers. */
+            200: {
+                headers: {
+                    /** @description The `command_id` of the write that answered, as `change.list` shows its changes. Pass it to `record.undo` or `credit.settle`. A retry under the same Idempotency-Key answers with the first run's. */
+                    "Scaffold-Command-Id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErasedAccount"];
+                };
+            };
+            /** @description No valid credential. When the console session of the cookie ended, `details` say why and when. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnauthorizedBody"];
+                };
+            };
+            /** @description Over a rate limit. Retry after the seconds in `Retry-After`. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Every failed request answers with this body. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     "account.terms_accept": {
         parameters: {
             query?: never;
@@ -13051,6 +13293,103 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UnauthorizedBody"];
+                };
+            };
+            /** @description Over a rate limit. Retry after the seconds in `Retry-After`. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Every failed request answers with this body. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "account.email_verify_send": {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Retrying with the same key within 24 hours returns the first result; after that the key is forgotten and the request runs again. The same key with another request answers 422 idempotency_key_reused. A command whose secret is shown only once answers 409 secret_shown instead, naming any token it created, and never shows the secret again. */
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description What the command answers. */
+            200: {
+                headers: {
+                    /** @description The `command_id` of the write that answered, as `change.list` shows its changes. Pass it to `record.undo` or `credit.settle`. A retry under the same Idempotency-Key answers with the first run's. */
+                    "Scaffold-Command-Id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LinkSent"];
+                };
+            };
+            /** @description No valid credential. When the console session of the cookie ended, `details` say why and when. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnauthorizedBody"];
+                };
+            };
+            /** @description Over a rate limit. Retry after the seconds in `Retry-After`. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Every failed request answers with this body. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "account.email_verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The secret at the end of an emailed link. */
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LinkInput"];
+            };
+        };
+        responses: {
+            /** @description What the command answers. */
+            200: {
+                headers: {
+                    /** @description The `command_id` of the write that answered, as `change.list` shows its changes. Pass it to `record.undo` or `credit.settle`. A retry under the same Idempotency-Key answers with the first run's. */
+                    "Scaffold-Command-Id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EmailVerified"];
                 };
             };
             /** @description Over a rate limit. Retry after the seconds in `Retry-After`. */
@@ -17111,6 +17450,15 @@ export interface operations {
         responses: {
             /** @description The file, with the Content-Type it was uploaded with. */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": string;
+                };
+            };
+            /** @description The one byte range a Range header asked for, with its Content-Range. */
+            206: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -27730,6 +28078,44 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StatusPage"];
+                };
+            };
+            /** @description Over a rate limit. Retry after the seconds in `Retry-After`. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Every failed request answers with this body. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "status.version_get": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description What the command answers. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScaffoldVersion"];
                 };
             };
             /** @description Over a rate limit. Retry after the seconds in `Retry-After`. */
