@@ -3476,6 +3476,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/projects/{project_id}/auth/users/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Owners only, console only: download every app user of a project as JSON, with the Argon2id hash and parameters of each password, so another auth system signs them in with the password they have. */
+        get: operations["app_auth.user_export"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/projects/{project_id}/auth/users/{user_id}/unlock": {
         parameters: {
             query?: never;
@@ -3672,7 +3689,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Show who a project's emails come from: its name beside Scaffold's shared sending address. */
+        /** @description Show who a project's emails come from: its name beside the address every app sends from. */
         get: operations["app_auth.sender_get"];
         put?: never;
         post?: never;
@@ -5024,7 +5041,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description List a project's custom domains, oldest first, with where each stands and the DNS records it needs. */
+        /** @description List a project's custom domains, oldest first, with where each stands, the DNS records it needs and when its certificate renews. */
         get: operations["domain.list"];
         put?: never;
         /** @description Add a custom domain to a project's app. It waits for the DNS records it answers: a CNAME to Scaffold, or an A record at the apex, and a TXT record proving it is yours. Other projects' unverified claims never block it: the first project to verify the domain takes it from the rest, and a claim that never verifies expires after 7 days. */
@@ -5062,7 +5079,7 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        /** @description Remove a custom domain from its project. The app stops answering there at once, no new certificate is issued for it, and any project can add it again with domain.add. */
+        /** @description Remove a custom domain from its project. The app stops answering there at once, its certificate is deleted within a day and never renewed, and any project can add it again with domain.add. */
         delete: operations["domain.remove"];
         options?: never;
         head?: never;
@@ -5770,7 +5787,10 @@ export interface components {
             redirect_to?: string | null;
         };
         AppEmailSender: {
-            /** @description Scaffold's sending address. None until Scaffold's email is set up. */
+            /**
+             * @description The address every app's emails come from, apart from Scaffold's own. None until
+             *     Scaffold's email is set up.
+             */
             address?: string | null;
             /** @description The name inboxes show beside the address: the project's. */
             name: string;
@@ -5830,6 +5850,7 @@ export interface components {
             subject: string;
             to: string;
         };
+        AppPasswordAlgorithm: "argon2id";
         /** @description The body half of `app_auth.password_change`. */
         AppPasswordChange: {
             current_password: string;
@@ -5948,6 +5969,23 @@ export interface components {
         AppUserEmailBody: {
             email: components["schemas"]["AppUserEmail"];
         };
+        /** @description Every user of a project's app, for moving them to another auth system. */
+        AppUserExport: {
+            exported_at: string;
+            project_id: components["schemas"]["ProjectId"];
+            /** @description In id order. */
+            users: components["schemas"]["AppUserExported"][];
+        };
+        AppUserExported: {
+            created_at: string;
+            email: string;
+            /** @description None until they confirm their email. */
+            email_confirmed_at?: string | null;
+            id: components["schemas"]["AppUserId"];
+            name?: string | null;
+            /** @description None for a user who never set a password and signs in by emailed link or code. */
+            password?: components["schemas"]["AppUserPasswordHash"] | null;
+        };
         AppUserId: string;
         /** @description Refuses unknown fields like the other pages, so none reads as another through `Output`. */
         AppUserPage: {
@@ -5966,6 +6004,39 @@ export interface components {
              * @description How many users the project has.
              */
             total: number;
+        };
+        /**
+         * @description A user's password hash: the PHC string any Argon2 library verifies as it is, and its parts
+         *     for a system that takes them apart. Debug prints `ExportedPassword(..)`.
+         */
+        AppUserPasswordHash: {
+            algorithm: components["schemas"]["AppPasswordAlgorithm"];
+            /** @description The hash output in unpadded standard base64, as in the PHC string. */
+            hash: string;
+            /**
+             * Format: uint32
+             * @description Time cost, the PHC `t`.
+             */
+            iterations: number;
+            /**
+             * Format: uint32
+             * @description Memory cost in KiB, the PHC `m`.
+             */
+            memory_kib: number;
+            /**
+             * Format: uint32
+             * @description Lanes, the PHC `p`.
+             */
+            parallelism: number;
+            /** @description Like `$argon2id$v=19$m=19456,t=2,p=1$<salt>$<hash>`. */
+            phc: string;
+            /** @description The salt in unpadded standard base64, as in the PHC string. */
+            salt: string;
+            /**
+             * Format: uint32
+             * @description The Argon2 version, 19 (0x13).
+             */
+            version: number;
         };
         /** @description One live session of a user, with the device and place it signed in from. */
         AppUserSession: {
@@ -7009,6 +7080,10 @@ export interface components {
             value: string;
         };
         Domain: {
+            /** @description When the certificate Caddy holds for a verified domain expires, as Scaffold's edge last reported it, hourly. None until there is one: Caddy takes it on the domain's first visit. @default null */
+            certificate_expires_at?: string | null;
+            /** @description Around when Caddy renews that certificate: on the first visit once a third of its lifetime is left. @default null */
+            certificate_renews_at?: string | null;
             /** @description When DNS was last checked. */
             checked_at?: string | null;
             created_at: string;
@@ -23722,6 +23797,55 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UserDeleted"];
+                };
+            };
+            /** @description No valid credential. When the console session of the cookie ended, `details` say why and when. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnauthorizedBody"];
+                };
+            };
+            /** @description Over a rate limit. Retry after the seconds in `Retry-After`. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Every failed request answers with this body. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "app_auth.user_export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: components["schemas"]["ProjectRef"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description What the command answers. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppUserExport"];
                 };
             };
             /** @description No valid credential. When the console session of the cookie ended, `details` say why and when. */
