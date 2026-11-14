@@ -154,6 +154,7 @@ export type Costs = components["schemas"]["Costs"];
 export type CreateInput = components["schemas"]["CreateInput"];
 export type CreateInput2 = components["schemas"]["CreateInput2"];
 export type CreateInput3 = components["schemas"]["CreateInput3"];
+export type CredentialsRotated = components["schemas"]["CredentialsRotated"];
 export type CreditBalance = components["schemas"]["CreditBalance"];
 export type CreditEntry = components["schemas"]["CreditEntry"];
 export type CreditPack = components["schemas"]["CreditPack"];

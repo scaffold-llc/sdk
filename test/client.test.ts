@@ -1,4 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
+import { createServer, type IncomingHttpHeaders, type Server } from "node:http";
+import type { AddressInfo } from "node:net";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { Scaffold, ScaffoldError } from "../src/index.js";
 
@@ -109,6 +111,56 @@ describe("signing an app's users in from its server", () => {
     const scaffold = new Scaffold({ token: "scf_live_a" });
     await expect(scaffold.app_auth.sign_up({ project_id: "prj_1", email: "grace@example.com", password: "a long passphrase" }, { clientIp: "203.0.113.7" })).rejects.toThrow(TypeError);
     expect(sent).toEqual([]);
+  });
+});
+
+describe("where secrets go", () => {
+  const listen = async (server: Server) => {
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    return `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  };
+
+  test("a redirect to another origin never receives the app secret or the token", async () => {
+    vi.unstubAllGlobals();
+    const received: IncomingHttpHeaders[] = [];
+    const other = createServer((request, response) => {
+      received.push(request.headers);
+      response.end("{}");
+    });
+    const otherUrl = await listen(other);
+    const redirecting = createServer((request, response) => {
+      response.writeHead(307, { Location: `${otherUrl}${request.url}` });
+      response.end();
+    });
+    const baseUrl = await listen(redirecting);
+    try {
+      const scaffold = new Scaffold({ token: "scf_live_a", appSecret: "sas_given", baseUrl, maxRetries: 0 });
+      await expect(scaffold.app_auth.sign_in({ project_id: "prj_1", email: "grace@example.com", password: "a long passphrase" })).rejects.toMatchObject({ status: 307, type: "unexpected_response" });
+      await expect(scaffold.account.get()).rejects.toMatchObject({ status: 307 });
+      expect(received).toEqual([]);
+    } finally {
+      redirecting.close();
+      other.close();
+    }
+  });
+
+  test("a base URL other than https is refused, except on this machine", () => {
+    for (const baseUrl of ["http://scaffold.llc", "ftp://scaffold.llc", "file:///tmp", "not a url"]) {
+      expect(() => new Scaffold({ token: "scf_live_a", baseUrl })).toThrow(TypeError);
+    }
+    for (const baseUrl of ["https://scaffold.llc", "http://localhost:8080", "http://127.0.0.1:8080/", "http://[::1]:8080"]) {
+      expect(() => new Scaffold({ token: "scf_live_a", baseUrl })).not.toThrow();
+    }
+  });
+
+  test("a path field of . or .. is refused before anything is sent, so it cannot change the route", async () => {
+    const scaffold = new Scaffold({ token: "scf_live_a" });
+    for (const value of [".", ".."]) {
+      await expect(scaffold.workspace.member_remove({ workspace_id: "wsp_1", person_id: value })).rejects.toThrow(TypeError);
+    }
+    expect(sent).toEqual([]);
+    await scaffold.workspace.member_remove({ workspace_id: "wsp_1", person_id: "..x" });
+    expect(sent[0]!.url.pathname).toBe("/v1/workspaces/wsp_1/members/..x");
   });
 });
 

@@ -179,8 +179,25 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Email a sign-in link to the account with this email. It works once, for 15 minutes, and a newer one replaces it. The answer is the same whether or not the email has an account, and asking again within a minute sends nothing more. */
+        /** @description Email a sign-in link to the account with this email. It works once, for 15 minutes, and a newer one replaces it. The answer is the same whether or not the email has an account, and asking again within a minute, or past 10 a day, sends nothing more. */
         post: operations["auth.sign_in_link_send"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/sign-in-link/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Show which account a sign-in link is for and when it expires, without using it, so the page it opens asks before signing in. A used, replaced or expired link is refused with why. */
+        post: operations["auth.sign_in_link_get"];
         delete?: never;
         options?: never;
         head?: never;
@@ -281,7 +298,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Email a password reset link to the account with this email. It works once, for 1 hour, and a newer one replaces it. The answer is the same whether or not the email has an account, and asking again within a minute sends nothing more. */
+        /** @description Email a password reset link to the account with this email. It works once, for 1 hour, and a newer one replaces it. The answer is the same whether or not the email has an account, and asking again within a minute, or past 10 a day, sends nothing more. */
         post: operations["auth.password_reset_send"];
         delete?: never;
         options?: never;
@@ -485,7 +502,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Set or clear your avatar. */
+        /** @description Set or clear your avatar. Console only. */
         post: operations["account.avatar_set"];
         delete?: never;
         options?: never;
@@ -604,7 +621,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Email a link to a new address; your email changes to it once the link is opened. Needs your password, or without one a sign-in from the last 5 minutes. It works once, for 24 hours, and a newer one replaces it; a password reset or signing out everywhere else cancels it. Asking again within a minute is refused. Console only. */
+        /** @description Email a link to a new address; your email changes to it once the link is opened. Needs your password, or without one a sign-in from the last 5 minutes. It works once, for 24 hours, and a newer one replaces it; a password reset or signing out everywhere else cancels it. Asking again within a minute is refused, and an address gets at most 10 a day (cap_reached). Console only. */
         post: operations["account.email_change_start"];
         delete?: never;
         options?: never;
@@ -621,7 +638,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Make the new address your email with the secret of the link emailed to it. A used, replaced, canceled or expired link is refused with why, and so is an address another account has. */
+        /** @description Make the new address your email with the secret of the link emailed to it, opened in your own console session. A used, replaced, canceled or expired link is refused with why, and so is an address another account has. */
         post: operations["account.email_change_confirm"];
         delete?: never;
         options?: never;
@@ -655,7 +672,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Email a link that verifies your email, which your 50 starter credits wait for. Sign-up sends one; this sends another. It works once, for 24 hours, and a newer one replaces it; asking again within a minute sends nothing more. Console only. */
+        /** @description Email a link that verifies your email, which your 50 starter credits wait for. Sign-up sends one; this sends another. It works once, for 24 hours, and a newer one replaces it; asking again within a minute, or past 10 a day, sends nothing more. Console only. */
         post: operations["account.email_verify_send"];
         delete?: never;
         options?: never;
@@ -672,7 +689,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Verify your email with the secret of the link emailed to it. Your Free workspace gets your 50 starter credits then, once per person; without a workspace yet, your first gets them. A used, replaced or expired link is refused with why. */
+        /** @description Verify your email with the secret of the link emailed to it, opened in your own console session. Your Free workspace gets your 50 starter credits then, once per inbox; without a workspace yet, your first gets them. A used, replaced or expired link is refused with why. */
         post: operations["account.email_verify"];
         delete?: never;
         options?: never;
@@ -892,7 +909,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Open invites to your proven email. */
+        /** @description Open invites to your proven email. Console only. */
         get: operations["workspace.invite_list_mine"];
         put?: never;
         post?: never;
@@ -928,7 +945,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Join by an invite_id from workspace.invite_list_mine. */
+        /** @description Join by an invite_id from workspace.invite_list_mine. Console only. */
         post: operations["workspace.invite_join"];
         delete?: never;
         options?: never;
@@ -996,7 +1013,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Make a member the owner of a workspace you own. */
+        /** @description Make a member the owner of a workspace you own. The plan stops using your card and billing details; the new owner adds theirs in the billing portal. */
         post: operations["workspace.ownership_transfer"];
         delete?: never;
         options?: never;
@@ -1481,7 +1498,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Paid plan: dump a project's database as gzipped SQL that psql reads. app_db.backup_list shows when it is ready, and app_db.dump_download answers it for an hour after. */
+        /** @description Paid plan: dump a project's database as gzipped SQL that psql reads. app_db.backup_list shows when it is ready, and app_db.dump_download answers it for an hour after. Console only, as DATABASE_URL is. */
         post: operations["app_db.dump_create"];
         delete?: never;
         options?: never;
@@ -1496,7 +1513,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description A ready dump's gzipped SQL, as base64, within the hour after it is ready. Needs write access, as DATABASE_URL does. */
+        /** @description A ready dump's gzipped SQL, as base64, within the hour after it is ready. Console only and needs write access, as DATABASE_URL does. */
         get: operations["app_db.dump_download"];
         put?: never;
         post?: never;
@@ -1516,7 +1533,7 @@ export interface paths {
         /** @description List a project's cron jobs with their next time and newest fires. */
         get: operations["cron.list"];
         put?: never;
-        /** @description Paid plan: POST to a path of the project's live app on a cron schedule, waking it if asleep. Each fire runs once, signed by a Scaffold-Signature JWT the project's JWKS verifies. A project sends 2 fires at once; times that pass while it waits show as one missed fire, and the newest runs. */
+        /** @description Paid plan: POST to a path of the project's live app on a cron schedule, waking it if asleep. Each fire runs once, signed by a Scaffold-Signature JWT the project's JWKS verifies. A project sends 2 fires at once and a workspace 8; times that pass while it waits show as one missed fire, and the newest runs. */
         post: operations["cron.create"];
         delete?: never;
         options?: never;
@@ -2543,7 +2560,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Archive a field, hiding its values. */
+        /** @description Archive a field, hiding its values. Search stops finding a text field's values within moments. */
         post: operations["field.archive"];
         delete?: never;
         options?: never;
@@ -2560,7 +2577,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Restore an archived field and show its values again. */
+        /** @description Restore an archived field and show its values again. Search finds a text field's values again within moments. */
         post: operations["field.restore"];
         delete?: never;
         options?: never;
@@ -3519,7 +3536,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Email an app user a password reset, or their unconfirmed address's confirmation again. At most one of each a minute. */
+        /** @description Email an app user a password reset, or their unconfirmed address's confirmation again. At most one of each a minute, counted like the user's own requests: 3 auth emails an hour per address, and the workspace's monthly quota while the address is unproven. */
         post: operations["app_auth.user_email_send"];
         delete?: never;
         options?: never;
@@ -3622,7 +3639,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Email an app user a link and a 6-digit code: to confirm their address, to sign in without a password (creating the user if the address is new), or to reset a forgotten password. The answer is the same for any address, and the proof works for an hour. An address gets at most 3 auth emails an hour, and one network address may ask a project for 20 an hour, sign-ups included; past either it answers cap_reached. Calls with no network address share one such 20 per project. The app's own server may pass each user's address with its secret, and then gets 500 an hour. */
+        /** @description Email an app user a link and a 6-digit code: to confirm their address, to sign in without a password (creating the user if the address is new), or to reset a forgotten password. The answer is the same for any address, and the proof works for an hour. Each address takes at most 3 requests an hour at a project and 10 at every app together, sent or not, and one network address may ask a project for 20 an hour (100 for all of an IPv6 /48), sign-ups included; past any it answers cap_reached. Calls with no network address share one such 20 per project. The app's own server may pass each user's address with its secret, and then gets 500 an hour. */
         post: operations["app_auth.email_send"];
         delete?: never;
         options?: never;
@@ -4050,7 +4067,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Approve the change a run waits on; its agent makes it and goes on. Its starter or a workspace owner may approve. */
+        /** @description Approve the change a run waits on; its agent makes it and goes on. Its starter or a workspace owner may approve, in the console only, so no token or assistant answers for a person. */
         post: operations["run.approve"];
         delete?: never;
         options?: never;
@@ -4244,7 +4261,7 @@ export interface paths {
         delete: operations["schedule.delete"];
         options?: never;
         head?: never;
-        /** @description Change a schedule. Only its maker and owners may. */
+        /** @description Change a schedule. Only its maker and owners may, and only its maker its prompt or agent, as it runs as them. */
         patch: operations["schedule.update"];
         trace?: never;
     };
@@ -4804,7 +4821,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Get status updates by email or webhook, for everything, some components or one incident, once the link emailed to you is opened. A webhook without a url emails the steps to set one up. Needs no sign-in. */
+        /** @description Get status updates by email or webhook, for everything, some components or one incident, once the link emailed to you is opened. A webhook without a url emails the steps to set one up. An address gets at most 5 such emails a day; past them it answers cap_reached. Needs no sign-in. */
         post: operations["status.subscribe"];
         delete?: never;
         options?: never;
@@ -4821,7 +4838,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Start a status subscription with the link its email carried, replacing what that address followed before. */
+        /** @description Start a status subscription with the link its email carried, replacing what that address followed before. An address keeps 10 webhooks at most, and a webhook that fails for about 3 days ends. */
         post: operations["status.subscription_confirm"];
         delete?: never;
         options?: never;
@@ -5044,7 +5061,7 @@ export interface paths {
         /** @description List a project's custom domains, oldest first, with where each stands, the DNS records it needs and when its certificate renews. */
         get: operations["domain.list"];
         put?: never;
-        /** @description Add a custom domain to a project's app. A Free workspace has 1 custom domain; more need the Paid plan. It waits for the DNS records it answers: a CNAME to Scaffold, or an A record at the apex, and a TXT record proving it is yours. Other projects' unverified claims never block it: the first project to verify the domain takes it from the rest, and a claim that never verifies expires after 7 days. */
+        /** @description Add a custom domain to a project's app. A Free workspace has 1 custom domain; more need the Paid plan. It waits for the DNS records it answers: a CNAME to Scaffold, or an A record at the apex, and a TXT record proving it is yours. Other projects' claims never block it, verified ones included: the project whose records verify the domain takes it from the rest, and a claim that never verifies expires after 7 days. */
         post: operations["domain.add"];
         delete?: never;
         options?: never;
@@ -5061,7 +5078,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Check a custom domain's DNS now. Once it points at Scaffold with its TXT record it is verified: it serves the project's live deploy and gets its certificate on its first visit, and other projects' unverified claims on it are removed. A wrong or missing record is named with its fix. Scaffold rechecks verified domains daily: one whose records are gone 3 days goes back to waiting and stops serving. A verified domain whose records point away from Scaffold is marked so, with the problem found, and gets no new certificate until a check finds them pointing back. */
+        /** @description Check a custom domain's DNS now. Once it points at Scaffold with its TXT record it is verified: it serves the project's live deploy and gets its certificate on its first visit, other projects' unverified claims on it are removed, and one that held it verified goes back to waiting. A wrong or missing record is named with its fix. Scaffold rechecks verified domains daily: one whose records are gone 3 days goes back to waiting and stops serving. A verified domain whose records point away from Scaffold is marked so, with the problem found, and gets no new certificate until a check finds them pointing back. */
         post: operations["domain.check"];
         delete?: never;
         options?: never;
@@ -5268,8 +5285,25 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Move a project to another workspace, owning both. Its deploys, domains, env, database, files, cron jobs, webhooks and app users go with it and nothing goes offline. For someone else's workspace, make a claim link. A Free workspace takes no server code and holds 2 projects and 1 custom domain. */
+        /** @description Move a project to another workspace, owning both. Its deploys, domains, env, database with its backups, files, source uploads, logs, cron jobs, webhooks and app users go with it and nothing goes offline. For someone else's workspace, make a claim link. A Free workspace takes no server code and holds 2 projects and 1 custom domain. */
         post: operations["project.move"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/projects/{project_id}/credentials/rotate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Owners only: give a project's DATABASE_URL a new password and SCAFFOLD_STRIPE_WEBHOOK_SECRET a new value, so copies anyone kept stop working, and redeploy its live server app with them. Sessions opened with the old password end once a deploy with the new one is live, or within an hour. Removing a member and moving the project do this too. */
+        post: operations["project.credentials_rotate"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5285,7 +5319,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Make a claim link for a project you own, in place of any open one. The owner of another workspace who opens it moves the project there, once, within 7 days. Its secret is answered only once. */
+        /** @description Make a claim link for a project you own, in place of any open one. The owner of another workspace who opens it moves the project there, once, within 7 days, with its backups, source uploads and logs. Its secret is answered only once. */
         post: operations["project.claim_link_create"];
         /** @description Cancel a project's open claim link, so it no longer moves the project. */
         delete: operations["project.claim_link_cancel"];
@@ -6507,7 +6541,10 @@ export interface components {
             body?: string | null;
             created_at: string;
             database_id: components["schemas"]["DatabaseId"];
-            /** @description Set while deleted, which comment.restore takes back. */
+            /**
+             * @description Set while deleted, which comment.restore takes back within 30 days; then the comment
+             *     and its text are erased.
+             */
             deleted_at?: string | null;
             id: components["schemas"]["CommentId"];
             /** @description The members it mentions, in the order it first does. */
@@ -6641,6 +6678,17 @@ export interface components {
             mode?: "live" | "test";
             name: string;
             workspace_id: components["schemas"]["WorkspaceId"];
+        };
+        CredentialsRotated: {
+            applies: components["schemas"]["Applies"];
+            /** @description Whether DATABASE_URL has a new password: false while the project has no database. */
+            database_password: boolean;
+            /** @description The redeploy that started with them, when `applies` is new_deploy. */
+            deploy_id?: components["schemas"]["DeployId"] | null;
+            project_id: components["schemas"]["ProjectId"];
+            rotated_at: string;
+            /** @description Whether SCAFFOLD_STRIPE_WEBHOOK_SECRET has a new value: false before Stripe is set up. */
+            stripe_webhook_secret: boolean;
         };
         /** @description Every amount is in millicredits, 1/1000 of a credit. */
         CreditBalance: {
@@ -7187,6 +7235,11 @@ export interface components {
             email: string;
             /** @description Asked again, so a stolen session cannot move the account to its own address. A person without one signs in again first instead, as `auth.provider_link` asks. @default null */
             password?: string | null;
+            /**
+             * @description While two-factor is on, a fresh code or passkey answer from a factor already on.
+             * @default null
+             */
+            second_factor?: components["schemas"]["Proof"] | null;
         };
         /** @description The account's email from now on, shown to whoever opened the link. */
         EmailChanged: {
@@ -7201,7 +7254,7 @@ export interface components {
              */
             starter_credits_granted: boolean;
         };
-        EndReason: "signed_out" | "signed_out_elsewhere" | "account_deleted" | "password_reset" | "expired";
+        EndReason: "signed_out" | "signed_out_elsewhere" | "account_deleted" | "password_reset" | "email_proven" | "expired";
         /** @description Why a session no longer signs its person in, and since when. */
         Ended: {
             ended_at: string;
@@ -8967,7 +9020,10 @@ export interface components {
             textAlignment?: components["schemas"]["Alignment"] | null;
             /** @description default, gray, brown, red, orange, yellow, green, blue, purple or pink. */
             textColor?: string | null;
-            /** @description image, file: an http or https URL. */
+            /**
+             * @description image, file: the URL of an image or file Scaffold stores, under /v1/images/ or
+             *     /v1/storage/ on Scaffold's own address.
+             */
             url?: string | null;
         };
         /** @enum {string} */
@@ -9138,6 +9194,11 @@ export interface components {
             name: string;
             /** @description Asked again, so a stolen session cannot put its own passkey in front of sign-in. A person without one signs in again first instead, as `auth.provider_link` asks. @default null */
             password?: string | null;
+            /**
+             * @description While two-factor is on, a fresh code or passkey answer from a factor already on.
+             * @default null
+             */
+            second_factor?: components["schemas"]["Proof"] | null;
         };
         /** @description Dynamic client registration (RFC 7591). Fields this server does not use are ignored. */
         RegisterInput: {
@@ -9252,7 +9313,7 @@ export interface components {
             expires_at: string;
             reservation_id: components["schemas"]["ReservationId"];
         };
-        /** @description The account a reset link sets the password of, shown before the person picks one. */
+        /** @description The account an emailed reset or sign-in link is for, shown before the link is used. */
         ResetLink: {
             email: string;
             expires_at: string;
@@ -9740,7 +9801,10 @@ export interface components {
         SearchResults: {
             /** @description Every match of each kind, with `by` applied and `kind` not. */
             counts: components["schemas"]["SearchCounts"];
-            /** @description Best match first: a record whose key is the query, then by how well the title matches. */
+            /**
+             * @description Best match first: a record whose key is the query, then every word in the title, then
+             *     some word in the title, then the rest, newest first within each.
+             */
             hits: components["schemas"]["SearchHit"][];
             workspace_id: components["schemas"]["WorkspaceId"];
         };
@@ -9839,7 +9903,7 @@ export interface components {
         /** @description What a view shows: a `record.query` query plus what its kind needs. */
         Settings: {
             /**
-             * @description Conditions every record of the view meets.
+             * @description Up to 20 conditions every record of the view meets.
              * @default []
              */
             filter?: components["schemas"]["Condition"][];
@@ -10833,6 +10897,11 @@ export interface components {
             code: string;
             /** @description Asked again, so a stolen session cannot put its own app between the owner and sign-in. A person without one signs in again first instead, as `auth.provider_link` asks. @default null */
             password?: string | null;
+            /**
+             * @description While two-factor is on, a fresh code or passkey answer from a factor already on.
+             * @default null
+             */
+            second_factor?: components["schemas"]["Proof"] | null;
         };
         /** @description A fresh second factor: send `code` or `passkey`, not both. */
         TotpRemoveInput: {
@@ -11910,6 +11979,49 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LinkSent"];
+                };
+            };
+            /** @description Over a rate limit. Retry after the seconds in `Retry-After`. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Every failed request answers with this body. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "auth.sign_in_link_get": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The secret at the end of an emailed link. */
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LinkInput"];
+            };
+        };
+        responses: {
+            /** @description What the command answers. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ResetLink"];
                 };
             };
             /** @description Over a rate limit. Retry after the seconds in `Retry-After`. */
@@ -13321,6 +13433,15 @@ export interface operations {
                     "application/json": components["schemas"]["EmailChanged"];
                 };
             };
+            /** @description No valid credential. When the console session of the cookie ended, `details` say why and when. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnauthorizedBody"];
+                };
+            };
             /** @description Over a rate limit. Retry after the seconds in `Retry-After`. */
             429: {
                 headers: {
@@ -13468,6 +13589,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EmailVerified"];
+                };
+            };
+            /** @description No valid credential. When the console session of the cookie ended, `details` say why and when. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnauthorizedBody"];
                 };
             };
             /** @description Over a rate limit. Retry after the seconds in `Retry-After`. */
@@ -23420,7 +23550,10 @@ export interface operations {
     "app_auth.token_refresh": {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Only from the app's own server, never a browser: the `SCAFFOLD_AUTH_SECRET` every server app of the project gets. With it the server's calls spend a budget of the app's own rather than one every app behind its address shares. A secret of no project, or of another, answers 401 `unauthorized`. */
+                "Scaffold-App-Secret"?: string;
+            };
             path: {
                 project_id: components["schemas"]["ProjectId"];
             };
@@ -23632,7 +23765,10 @@ export interface operations {
     "app_auth.jwks_get": {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Only from the app's own server, never a browser: the `SCAFFOLD_AUTH_SECRET` every server app of the project gets. With it the server's calls spend a budget of the app's own rather than one every app behind its address shares. A secret of no project, or of another, answers 401 `unauthorized`. */
+                "Scaffold-App-Secret"?: string;
+            };
             path: {
                 project_id: components["schemas"]["ProjectId"];
             };
@@ -30219,6 +30355,60 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Project"];
+                };
+            };
+            /** @description No valid credential. When the console session of the cookie ended, `details` say why and when. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnauthorizedBody"];
+                };
+            };
+            /** @description Over a rate limit. Retry after the seconds in `Retry-After`. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Every failed request answers with this body. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "project.credentials_rotate": {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Retrying with the same key within 24 hours returns the first result; after that the key is forgotten and the request runs again. The same key with another request answers 422 idempotency_key_reused. A command whose secret is shown only once answers 409 secret_shown instead, naming any token it created, and never shows the secret again. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                project_id: components["schemas"]["ProjectRef"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description What the command answers. */
+            200: {
+                headers: {
+                    /** @description The `command_id` of the write that answered, as `change.list` shows its changes. Pass it to `record.undo` or `credit.settle`. A retry under the same Idempotency-Key answers with the first run's. */
+                    "Scaffold-Command-Id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CredentialsRotated"];
                 };
             };
             /** @description No valid credential. When the console session of the cookie ended, `details` say why and when. */

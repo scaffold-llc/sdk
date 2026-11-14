@@ -4,9 +4,9 @@ import { COMMANDS, type ErrorCode, type Methods } from "./generated/methods.js";
 export const API_VERSION = "2026-10-01";
 
 export interface ScaffoldOptions {
-  /** A token from Settings, then Apps and tokens. Defaults to `SCAFFOLD_TOKEN`. */
+  /** A token from Settings, then Apps and tokens. Defaults to `SCAFFOLD_TOKEN`. It acts as you in its workspace, so never send it to a browser. */
   token?: string;
-  /** Defaults to `https://scaffold.llc`. */
+  /** Defaults to `https://scaffold.llc`. Must be `https`, or `http` on `localhost`. */
   baseUrl?: string;
   /** Milliseconds per request. Defaults to `30000`. */
   timeout?: number;
@@ -102,6 +102,8 @@ export class Scaffold {
     const env = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env;
     this.#token = options.token ?? env?.SCAFFOLD_TOKEN;
     this.#baseUrl = (options.baseUrl ?? "https://scaffold.llc").replace(/\/+$/, "");
+    const { protocol, hostname } = new URL(this.#baseUrl);
+    if (protocol !== "https:" && !(protocol === "http:" && LOOPBACK.has(hostname))) throw new TypeError(`baseUrl must be https, or http on localhost, not ${protocol}`);
     this.#timeout = options.timeout ?? 30_000;
     this.#maxRetries = options.maxRetries ?? 2;
     this.#version = options.version ?? API_VERSION;
@@ -121,6 +123,8 @@ export class Scaffold {
       const value = rest[name];
       if (value === undefined) throw new TypeError(`${route.method} ${route.path} needs ${name}`);
       delete rest[name];
+      // The URL parser would read these as the current or parent folder and change the route.
+      if (value === "." || value === "..") throw new TypeError(`${route.method} ${route.path} cannot take ${value} as ${name}`);
       return encodeURIComponent(String(value));
     });
     const url = new URL(this.#baseUrl + path);
@@ -144,7 +148,8 @@ export class Scaffold {
     }
 
     for (let attempt = 0; ; attempt++) {
-      const response = await fetch(url, { method: route.method, headers, body, signal: AbortSignal.timeout(this.#timeout) });
+      // A redirect would carry the app secret to wherever it points, so it fails as unexpected_response.
+      const response = await fetch(url, { method: route.method, headers, body, redirect: "manual", signal: AbortSignal.timeout(this.#timeout) });
       if (response.ok) return response.headers.get("Content-Type")?.includes("json") ? response.json() : response.blob();
       const error = await failure(response);
       // A 429 or 503 never ran. A 501 answers the same until the platform changes. Any other 5xx
@@ -155,6 +160,8 @@ export class Scaffold {
     }
   }
 }
+
+const LOOPBACK = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
 /** Seconds before retry `attempt + 1` when the answer named no wait: about 0.5, 1, 2 and on, with jitter. */
 const backoff = (attempt: number) => 0.5 * 2 ** attempt * (0.5 + Math.random() / 2);

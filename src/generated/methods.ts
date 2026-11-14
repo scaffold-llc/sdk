@@ -9,7 +9,6 @@ export type ErrorCode = "invalid_request" | "unauthorized" | "credits_exhausted"
 export const COMMANDS = {
   account: {
     get: { method: "GET", path: "/v1/account" },
-    avatar_set: { method: "POST", path: "/v1/account/avatar", idempotent: true },
   },
   image: {
     get: { method: "GET", path: "/v1/images/{image_id}" },
@@ -28,9 +27,7 @@ export const COMMANDS = {
     invite_revoke: { method: "DELETE", path: "/v1/invites/{invite_id}", idempotent: true },
     invite_restore: { method: "POST", path: "/v1/invites/{invite_id}/restore", idempotent: true },
     invite_dismiss: { method: "POST", path: "/v1/invites/{invite_id}/dismiss", idempotent: true },
-    invite_list_mine: { method: "GET", path: "/v1/invites/mine" },
     invite_accept: { method: "POST", path: "/v1/invites/accept", idempotent: true },
-    invite_join: { method: "POST", path: "/v1/invites/{invite_id}/join", idempotent: true },
     invite_decline: { method: "POST", path: "/v1/invites/decline", idempotent: true },
     invite_get: { method: "POST", path: "/v1/invites/preview" },
     member_list: { method: "GET", path: "/v1/workspaces/{workspace_id}/members" },
@@ -53,6 +50,7 @@ export const COMMANDS = {
     alert_set: { method: "PUT", path: "/v1/projects/{project_id}/alerts", idempotent: true },
     maintenance_set: { method: "PUT", path: "/v1/projects/{project_id}/maintenance", idempotent: true },
     move: { method: "POST", path: "/v1/projects/{project_id}/move", idempotent: true },
+    credentials_rotate: { method: "POST", path: "/v1/projects/{project_id}/credentials/rotate", idempotent: true },
     claim_link_create: { method: "POST", path: "/v1/projects/{project_id}/claim-link" },
     claim_link_cancel: { method: "DELETE", path: "/v1/projects/{project_id}/claim-link", idempotent: true },
   },
@@ -82,8 +80,6 @@ export const COMMANDS = {
     get: { method: "GET", path: "/v1/projects/{project_id}/database" },
     backup_list: { method: "GET", path: "/v1/projects/{project_id}/database/backups" },
     backup_restore: { method: "POST", path: "/v1/projects/{project_id}/database/backups/{backup_id}/restore", idempotent: true },
-    dump_create: { method: "POST", path: "/v1/projects/{project_id}/database/dumps", idempotent: true },
-    dump_download: { method: "GET", path: "/v1/projects/{project_id}/database/dumps/{dump_id}" },
   },
   cron: {
     create: { method: "POST", path: "/v1/projects/{project_id}/cron-jobs", idempotent: true },
@@ -259,7 +255,6 @@ export const COMMANDS = {
     get: { method: "GET", path: "/v1/runs/{run_id}" },
     stop: { method: "POST", path: "/v1/runs/{run_id}/stop", idempotent: true },
     approval_list: { method: "GET", path: "/v1/workspaces/{workspace_id}/approvals" },
-    approve: { method: "POST", path: "/v1/runs/{run_id}/approve", idempotent: true },
     deny: { method: "POST", path: "/v1/runs/{run_id}/deny", idempotent: true },
     resume: { method: "POST", path: "/v1/runs/{run_id}/resume", idempotent: true },
     follow_up: { method: "POST", path: "/v1/runs/{run_id}/follow-up", idempotent: true },
@@ -338,8 +333,6 @@ export interface Methods {
   account: {
     /** Show the person you act for: name, email, signup time, how they sign in, the request's console session and any pending deletion. An ended console session answers 401 with why in the error's details. `GET /v1/account` */
     get(input?: Record<string, never>): Promise<operations["account.get"]["responses"][200]["content"]["application/json"]>;
-    /** Set or clear your avatar. `POST /v1/account/avatar` */
-    avatar_set(input?: NonNullable<operations["account.avatar_set"]["requestBody"]>["content"]["application/json"], options?: WriteOptions): Promise<operations["account.avatar_set"]["responses"][200]["content"]["application/json"]>;
   };
   image: {
     /** Read a logo or avatar by the image id ending its URL. `GET /v1/images/{image_id}` */
@@ -372,19 +365,15 @@ export interface Methods {
     invite_restore(input: operations["workspace.invite_restore"]["parameters"]["path"], options?: WriteOptions): Promise<operations["workspace.invite_restore"]["responses"][200]["content"]["application/json"]>;
     /** Hide a declined invite that workspace.member_list shows. `POST /v1/invites/{invite_id}/dismiss` */
     invite_dismiss(input: operations["workspace.invite_dismiss"]["parameters"]["path"], options?: WriteOptions): Promise<operations["workspace.invite_dismiss"]["responses"][200]["content"]["application/json"]>;
-    /** Open invites to your proven email. `GET /v1/invites/mine` */
-    invite_list_mine(input?: Record<string, never>): Promise<operations["workspace.invite_list_mine"]["responses"][200]["content"]["application/json"]>;
     /** Join a workspace by an invite sent to your account's email. `POST /v1/invites/accept` */
     invite_accept(input: NonNullable<operations["workspace.invite_accept"]["requestBody"]>["content"]["application/json"], options?: WriteOptions): Promise<operations["workspace.invite_accept"]["responses"][200]["content"]["application/json"]>;
-    /** Join by an invite_id from workspace.invite_list_mine. `POST /v1/invites/{invite_id}/join` */
-    invite_join(input: operations["workspace.invite_join"]["parameters"]["path"], options?: WriteOptions): Promise<operations["workspace.invite_join"]["responses"][200]["content"]["application/json"]>;
     /** Turn down an invite sent to your account's email, by its secret. `POST /v1/invites/decline` */
     invite_decline(input: NonNullable<operations["workspace.invite_decline"]["requestBody"]>["content"]["application/json"], options?: WriteOptions): Promise<operations["workspace.invite_decline"]["responses"][200]["content"]["application/json"]>;
     /** Show an invite from its link secret, signed in or not, and whether it is still open. `POST /v1/invites/preview` */
     invite_get(input: NonNullable<operations["workspace.invite_get"]["requestBody"]>["content"]["application/json"]): Promise<operations["workspace.invite_get"]["responses"][200]["content"]["application/json"]>;
     /** List a workspace's members with roles, avatars and last activity, and its open invites. `GET /v1/workspaces/{workspace_id}/members` */
     member_list(input: operations["workspace.member_list"]["parameters"]["path"]): Promise<operations["workspace.member_list"]["responses"][200]["content"]["application/json"]>;
-    /** Make a member the owner of a workspace you own. `POST /v1/workspaces/{workspace_id}/transfer-ownership` */
+    /** Make a member the owner of a workspace you own. The plan stops using your card and billing details; the new owner adds theirs in the billing portal. `POST /v1/workspaces/{workspace_id}/transfer-ownership` */
     ownership_transfer(input: operations["workspace.ownership_transfer"]["parameters"]["path"] & NonNullable<operations["workspace.ownership_transfer"]["requestBody"]>["content"]["application/json"], options?: WriteOptions): Promise<operations["workspace.ownership_transfer"]["responses"][200]["content"]["application/json"]>;
     /** Remove a member from a workspace you own, or leave one with your own person_id. Revokes their tokens there. `DELETE /v1/workspaces/{workspace_id}/members/{person_id}` */
     member_remove(input: operations["workspace.member_remove"]["parameters"]["path"], options?: WriteOptions): Promise<operations["workspace.member_remove"]["responses"][200]["content"]["application/json"]>;
@@ -418,9 +407,11 @@ export interface Methods {
     alert_set(input: operations["project.alert_set"]["parameters"]["path"] & NonNullable<operations["project.alert_set"]["requestBody"]>["content"]["application/json"], options?: WriteOptions): Promise<operations["project.alert_set"]["responses"][200]["content"]["application/json"]>;
     /** Turn a project's maintenance mode on or off, as its owner. While on, its address and domains show a maintenance page and its deploys keep running on their own addresses. `PUT /v1/projects/{project_id}/maintenance` */
     maintenance_set(input: operations["project.maintenance_set"]["parameters"]["path"] & NonNullable<operations["project.maintenance_set"]["requestBody"]>["content"]["application/json"], options?: WriteOptions): Promise<operations["project.maintenance_set"]["responses"][200]["content"]["application/json"]>;
-    /** Move a project to another workspace, owning both. Its deploys, domains, env, database, files, cron jobs, webhooks and app users go with it and nothing goes offline. For someone else's workspace, make a claim link. A Free workspace takes no server code and holds 2 projects and 1 custom domain. `POST /v1/projects/{project_id}/move` */
+    /** Move a project to another workspace, owning both. Its deploys, domains, env, database with its backups, files, source uploads, logs, cron jobs, webhooks and app users go with it and nothing goes offline. For someone else's workspace, make a claim link. A Free workspace takes no server code and holds 2 projects and 1 custom domain. `POST /v1/projects/{project_id}/move` */
     move(input: operations["project.move"]["parameters"]["path"] & NonNullable<operations["project.move"]["requestBody"]>["content"]["application/json"], options?: WriteOptions): Promise<operations["project.move"]["responses"][200]["content"]["application/json"]>;
-    /** Make a claim link for a project you own, in place of any open one. The owner of another workspace who opens it moves the project there, once, within 7 days. Its secret is answered only once. `POST /v1/projects/{project_id}/claim-link` */
+    /** Owners only: give a project's DATABASE_URL a new password and SCAFFOLD_STRIPE_WEBHOOK_SECRET a new value, so copies anyone kept stop working, and redeploy its live server app with them. Sessions opened with the old password end once a deploy with the new one is live, or within an hour. Removing a member and moving the project do this too. `POST /v1/projects/{project_id}/credentials/rotate` */
+    credentials_rotate(input: operations["project.credentials_rotate"]["parameters"]["path"], options?: WriteOptions): Promise<operations["project.credentials_rotate"]["responses"][200]["content"]["application/json"]>;
+    /** Make a claim link for a project you own, in place of any open one. The owner of another workspace who opens it moves the project there, once, within 7 days, with its backups, source uploads and logs. Its secret is answered only once. `POST /v1/projects/{project_id}/claim-link` */
     claim_link_create(input: operations["project.claim_link_create"]["parameters"]["path"]): Promise<operations["project.claim_link_create"]["responses"][200]["content"]["application/json"]>;
     /** Cancel a project's open claim link, so it no longer moves the project. `DELETE /v1/projects/{project_id}/claim-link` */
     claim_link_cancel(input: operations["project.claim_link_cancel"]["parameters"]["path"], options?: WriteOptions): Promise<operations["project.claim_link_cancel"]["responses"][200]["content"]["application/json"]>;
@@ -470,13 +461,9 @@ export interface Methods {
     backup_list(input: operations["app_db.backup_list"]["parameters"]["path"]): Promise<operations["app_db.backup_list"]["responses"][200]["content"]["application/json"]>;
     /** Paid plan, owners only: put a backup in place of everything in a project's database, which is read-only from when the restore starts until it ends. Rows written since are lost, so the current data is backed up first as undo_backup_id; restoring that backup undoes this. A restore that fails leaves the database as it was. `POST /v1/projects/{project_id}/database/backups/{backup_id}/restore` */
     backup_restore(input: operations["app_db.backup_restore"]["parameters"]["path"], options?: WriteOptions): Promise<operations["app_db.backup_restore"]["responses"][200]["content"]["application/json"]>;
-    /** Paid plan: dump a project's database as gzipped SQL that psql reads. app_db.backup_list shows when it is ready, and app_db.dump_download answers it for an hour after. `POST /v1/projects/{project_id}/database/dumps` */
-    dump_create(input: operations["app_db.dump_create"]["parameters"]["path"], options?: WriteOptions): Promise<operations["app_db.dump_create"]["responses"][200]["content"]["application/json"]>;
-    /** A ready dump's gzipped SQL, as base64, within the hour after it is ready. Needs write access, as DATABASE_URL does. `GET /v1/projects/{project_id}/database/dumps/{dump_id}` */
-    dump_download(input: operations["app_db.dump_download"]["parameters"]["path"]): Promise<Blob>;
   };
   cron: {
-    /** Paid plan: POST to a path of the project's live app on a cron schedule, waking it if asleep. Each fire runs once, signed by a Scaffold-Signature JWT the project's JWKS verifies. A project sends 2 fires at once; times that pass while it waits show as one missed fire, and the newest runs. `POST /v1/projects/{project_id}/cron-jobs` */
+    /** Paid plan: POST to a path of the project's live app on a cron schedule, waking it if asleep. Each fire runs once, signed by a Scaffold-Signature JWT the project's JWKS verifies. A project sends 2 fires at once and a workspace 8; times that pass while it waits show as one missed fire, and the newest runs. `POST /v1/projects/{project_id}/cron-jobs` */
     create(input: operations["cron.create"]["parameters"]["path"] & NonNullable<operations["cron.create"]["requestBody"]>["content"]["application/json"], options?: WriteOptions): Promise<operations["cron.create"]["responses"][200]["content"]["application/json"]>;
     /** List a project's cron jobs with their next time and newest fires. `GET /v1/projects/{project_id}/cron-jobs` */
     list(input: operations["cron.list"]["parameters"]["path"]): Promise<operations["cron.list"]["responses"][200]["content"]["application/json"]>;
@@ -596,9 +583,9 @@ export interface Methods {
     options_set(input: operations["field.options_set"]["parameters"]["path"] & NonNullable<operations["field.options_set"]["requestBody"]>["content"]["application/json"], options?: WriteOptions): Promise<operations["field.options_set"]["responses"][200]["content"]["application/json"]>;
     /** Set the database a relation field links to, refused while records link through it, and two_way: whether that database shows its links back. `POST /v1/fields/{field_id}/relation` */
     relation_set(input: operations["field.relation_set"]["parameters"]["path"] & NonNullable<operations["field.relation_set"]["requestBody"]>["content"]["application/json"], options?: WriteOptions): Promise<operations["field.relation_set"]["responses"][200]["content"]["application/json"]>;
-    /** Archive a field, hiding its values. `POST /v1/fields/{field_id}/archive` */
+    /** Archive a field, hiding its values. Search stops finding a text field's values within moments. `POST /v1/fields/{field_id}/archive` */
     archive(input: operations["field.archive"]["parameters"]["path"], options?: WriteOptions): Promise<operations["field.archive"]["responses"][200]["content"]["application/json"]>;
-    /** Restore an archived field and show its values again. `POST /v1/fields/{field_id}/restore` */
+    /** Restore an archived field and show its values again. Search finds a text field's values again within moments. `POST /v1/fields/{field_id}/restore` */
     restore(input: operations["field.restore"]["parameters"]["path"], options?: WriteOptions): Promise<operations["field.restore"]["responses"][200]["content"]["application/json"]>;
   };
   record: {
@@ -706,7 +693,7 @@ export interface Methods {
     user_show(input: operations["app_auth.user_show"]["parameters"]["path"]): Promise<operations["app_auth.user_show"]["responses"][200]["content"]["application/json"]>;
     /** Owners only: end the 15-minute lock five wrong passwords put on an app user's email. `POST /v1/projects/{project_id}/auth/users/{user_id}/unlock` */
     user_unlock(input: operations["app_auth.user_unlock"]["parameters"]["path"], options?: WriteOptions): Promise<operations["app_auth.user_unlock"]["responses"][200]["content"]["application/json"]>;
-    /** Email an app user a password reset, or their unconfirmed address's confirmation again. At most one of each a minute. `POST /v1/projects/{project_id}/auth/users/{user_id}/email` */
+    /** Email an app user a password reset, or their unconfirmed address's confirmation again. At most one of each a minute, counted like the user's own requests: 3 auth emails an hour per address, and the workspace's monthly quota while the address is unproven. `POST /v1/projects/{project_id}/auth/users/{user_id}/email` */
     user_email_send(input: operations["app_auth.user_email_send"]["parameters"]["path"] & NonNullable<operations["app_auth.user_email_send"]["requestBody"]>["content"]["application/json"], options?: WriteOptions): Promise<operations["app_auth.user_email_send"]["responses"][200]["content"]["application/json"]>;
     /** List an app user's live sessions with the device and place each signed in from. `GET /v1/projects/{project_id}/auth/users/{user_id}/sessions` */
     user_session_list(input: operations["app_auth.user_session_list"]["parameters"]["path"]): Promise<operations["app_auth.user_session_list"]["responses"][200]["content"]["application/json"]>;
@@ -722,7 +709,7 @@ export interface Methods {
     settings_get(input: operations["app_auth.settings_get"]["parameters"]["path"]): Promise<operations["app_auth.settings_get"]["responses"][200]["content"]["application/json"]>;
     /** Replace the site URL a project's auth emails link to and the other URLs they may. `POST /v1/projects/{project_id}/auth/settings` */
     settings_update(input: operations["app_auth.settings_update"]["parameters"]["path"] & NonNullable<operations["app_auth.settings_update"]["requestBody"]>["content"]["application/json"], options?: WriteOptions): Promise<operations["app_auth.settings_update"]["responses"][200]["content"]["application/json"]>;
-    /** Email an app user a link and a 6-digit code: to confirm their address, to sign in without a password (creating the user if the address is new), or to reset a forgotten password. The answer is the same for any address, and the proof works for an hour. An address gets at most 3 auth emails an hour, and one network address may ask a project for 20 an hour, sign-ups included; past either it answers cap_reached. Calls with no network address share one such 20 per project. The app's own server may pass each user's address with its secret, and then gets 500 an hour. `POST /v1/projects/{project_id}/auth/email` */
+    /** Email an app user a link and a 6-digit code: to confirm their address, to sign in without a password (creating the user if the address is new), or to reset a forgotten password. The answer is the same for any address, and the proof works for an hour. Each address takes at most 3 requests an hour at a project and 10 at every app together, sent or not, and one network address may ask a project for 20 an hour (100 for all of an IPv6 /48), sign-ups included; past any it answers cap_reached. Calls with no network address share one such 20 per project. The app's own server may pass each user's address with its secret, and then gets 500 an hour. `POST /v1/projects/{project_id}/auth/email` */
     email_send(input: operations["app_auth.email_send"]["parameters"]["path"] & NonNullable<operations["app_auth.email_send"]["requestBody"]>["content"]["application/json"], options?: AppServerOptions): Promise<operations["app_auth.email_send"]["responses"][200]["content"]["application/json"]>;
     /** Show the emails a project's app queued this month, its workspace's total against the plan's monthly quota, and its hourly email.send limit. `GET /v1/projects/{project_id}/auth/email-usage` */
     email_usage_get(input: operations["app_auth.email_usage_get"]["parameters"]["path"]): Promise<operations["app_auth.email_usage_get"]["responses"][200]["content"]["application/json"]>;
@@ -778,8 +765,6 @@ export interface Methods {
     stop(input: operations["run.stop"]["parameters"]["path"], options?: WriteOptions): Promise<operations["run.stop"]["responses"][200]["content"]["application/json"]>;
     /** List the changes waiting for your approval: your runs', and every member's for a workspace owner. `GET /v1/workspaces/{workspace_id}/approvals` */
     approval_list(input: operations["run.approval_list"]["parameters"]["path"]): Promise<operations["run.approval_list"]["responses"][200]["content"]["application/json"]>;
-    /** Approve the change a run waits on; its agent makes it and goes on. Its starter or a workspace owner may approve. `POST /v1/runs/{run_id}/approve` */
-    approve(input: operations["run.approve"]["parameters"]["path"] & NonNullable<operations["run.approve"]["requestBody"]>["content"]["application/json"], options?: WriteOptions): Promise<operations["run.approve"]["responses"][202]["content"]["application/json"]>;
     /** Deny the change a run waits on and stop the run. `POST /v1/runs/{run_id}/deny` */
     deny(input: operations["run.deny"]["parameters"]["path"] & NonNullable<operations["run.deny"]["requestBody"]>["content"]["application/json"], options?: WriteOptions): Promise<operations["run.deny"]["responses"][202]["content"]["application/json"]>;
     /** Resume a run stopped by a person, a limit or its credits. `POST /v1/runs/{run_id}/resume` */
@@ -806,7 +791,7 @@ export interface Methods {
     list(input: operations["schedule.list"]["parameters"]["path"]): Promise<operations["schedule.list"]["responses"][200]["content"]["application/json"]>;
     /** Paid plan: run an agent on a repeating time, as you. A run it cannot start, as while the agent is paused, is skipped. `POST /v1/workspaces/{workspace_id}/schedules` */
     create(input: operations["schedule.create"]["parameters"]["path"] & NonNullable<operations["schedule.create"]["requestBody"]>["content"]["application/json"], options?: WriteOptions): Promise<operations["schedule.create"]["responses"][200]["content"]["application/json"]>;
-    /** Change a schedule. Only its maker and owners may. `PATCH /v1/schedules/{schedule_id}` */
+    /** Change a schedule. Only its maker and owners may, and only its maker its prompt or agent, as it runs as them. `PATCH /v1/schedules/{schedule_id}` */
     update(input: operations["schedule.update"]["parameters"]["path"] & NonNullable<operations["schedule.update"]["requestBody"]>["content"]["application/json"], options?: WriteOptions): Promise<operations["schedule.update"]["responses"][200]["content"]["application/json"]>;
     /** Delete a schedule. Only its maker and owners may. `DELETE /v1/schedules/{schedule_id}` */
     delete(input: operations["schedule.delete"]["parameters"]["path"], options?: WriteOptions): Promise<operations["schedule.delete"]["responses"][200]["content"]["application/json"]>;
@@ -878,11 +863,11 @@ export interface Methods {
     logs(input: operations["deploy.logs"]["parameters"]["path"] & NonNullable<operations["deploy.logs"]["parameters"]["query"]>): Promise<operations["deploy.logs"]["responses"][200]["content"]["application/json"]>;
   };
   domain: {
-    /** Add a custom domain to a project's app. A Free workspace has 1 custom domain; more need the Paid plan. It waits for the DNS records it answers: a CNAME to Scaffold, or an A record at the apex, and a TXT record proving it is yours. Other projects' unverified claims never block it: the first project to verify the domain takes it from the rest, and a claim that never verifies expires after 7 days. `POST /v1/projects/{project_id}/domains` */
+    /** Add a custom domain to a project's app. A Free workspace has 1 custom domain; more need the Paid plan. It waits for the DNS records it answers: a CNAME to Scaffold, or an A record at the apex, and a TXT record proving it is yours. Other projects' claims never block it, verified ones included: the project whose records verify the domain takes it from the rest, and a claim that never verifies expires after 7 days. `POST /v1/projects/{project_id}/domains` */
     add(input: operations["domain.add"]["parameters"]["path"] & NonNullable<operations["domain.add"]["requestBody"]>["content"]["application/json"], options?: WriteOptions): Promise<operations["domain.add"]["responses"][200]["content"]["application/json"]>;
     /** List a project's custom domains, oldest first, with where each stands, the DNS records it needs and when its certificate renews. `GET /v1/projects/{project_id}/domains` */
     list(input: operations["domain.list"]["parameters"]["path"]): Promise<operations["domain.list"]["responses"][200]["content"]["application/json"]>;
-    /** Check a custom domain's DNS now. Once it points at Scaffold with its TXT record it is verified: it serves the project's live deploy and gets its certificate on its first visit, and other projects' unverified claims on it are removed. A wrong or missing record is named with its fix. Scaffold rechecks verified domains daily: one whose records are gone 3 days goes back to waiting and stops serving. A verified domain whose records point away from Scaffold is marked so, with the problem found, and gets no new certificate until a check finds them pointing back. `POST /v1/domains/{domain_id}/check` */
+    /** Check a custom domain's DNS now. Once it points at Scaffold with its TXT record it is verified: it serves the project's live deploy and gets its certificate on its first visit, other projects' unverified claims on it are removed, and one that held it verified goes back to waiting. A wrong or missing record is named with its fix. Scaffold rechecks verified domains daily: one whose records are gone 3 days goes back to waiting and stops serving. A verified domain whose records point away from Scaffold is marked so, with the problem found, and gets no new certificate until a check finds them pointing back. `POST /v1/domains/{domain_id}/check` */
     check(input: operations["domain.check"]["parameters"]["path"], options?: WriteOptions): Promise<operations["domain.check"]["responses"][200]["content"]["application/json"]>;
     /** Remove a custom domain from its project. The app stops answering there at once, its certificate is deleted within a day and never renewed, and any project can add it again with domain.add. `DELETE /v1/domains/{domain_id}` */
     remove(input: operations["domain.remove"]["parameters"]["path"], options?: WriteOptions): Promise<operations["domain.remove"]["responses"][200]["content"]["application/json"]>;

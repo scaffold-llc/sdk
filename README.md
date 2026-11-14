@@ -12,7 +12,7 @@ About five minutes, from an empty folder to a task on your board and a new proje
 
 ### 1. Create a token
 
-In Scaffold, create a token with Write access under Settings, then Apps and tokens, and copy the workspace id beside it. The token is shown once, so save both to your environment now.
+In Scaffold, create a token with Write access under Settings, then Apps and tokens, and copy the workspace id beside it. The token is shown once, so save both to your environment now. It acts as you in that workspace, so keep it on servers and in scripts, never in code a browser loads.
 
 ```bash
 export SCAFFOLD_TOKEN=scf_live_...
@@ -111,6 +111,7 @@ const scaffold = new Scaffold({
 - **Lists** like `scaffold.task.list()` answer one page of `data` with `has_more` and `next_cursor` when awaited. Loop with `for await` and the SDK fetches each next page as you reach it.
 - **Errors** throw a `ScaffoldError` with the HTTP status, the error's `type`, `message`, `param`, `requestId` and `details`, and `retryAfter` in seconds when the answer asked for a wait.
 - **Writes** take an idempotency key as a second argument, `{ idempotencyKey: "launch-2026-10-29" }`, so a retried write returns the first result instead of running twice. Without one the SDK sends its own, so its retries of a write never run it twice.
+- **Tokens** act as you in their workspace. Use the SDK with a token only from a server or a script, never from code a browser loads.
 - **Your app's users** sign up, sign in and get auth emails through `scaffold.app_auth.sign_up()`, `sign_in()`, `email_send()`, `verify()` and `password_reset()` from your app's server. Pass the user's address as `{ clientIp }` so each user gets their own rate limits; it needs `appSecret`, which Scaffold sets in every server app as `SCAFFOLD_AUTH_SECRET`. Keep it on the server.
 - **Types** for every schema in the API are exported by name, like `import type { Task, Run } from "@scaffold-llc/sdk"`.
 
