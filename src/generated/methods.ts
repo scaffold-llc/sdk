@@ -353,7 +353,7 @@ export interface Methods {
     export_start(input: operations["workspace.export_start"]["parameters"]["path"], options?: WriteOptions): Promise<operations["workspace.export_start"]["responses"][200]["content"]["application/json"]>;
     /** An export's progress; the latest by default. `GET /v1/workspaces/{workspace_id}/export` */
     export_get(input: operations["workspace.export_get"]["parameters"]["path"] & NonNullable<operations["workspace.export_get"]["parameters"]["query"]>): Promise<operations["workspace.export_get"]["responses"][200]["content"]["application/json"]>;
-    /** A ready export's zip, as base64. Needs write access, since it holds every project's database. `GET /v1/workspaces/{workspace_id}/exports/{export_id}/download` */
+    /** A ready export's zip, as base64. Needs write access, since it holds every project's database: download it only when the person asks for the export itself. `GET /v1/workspaces/{workspace_id}/exports/{export_id}/download` */
     export_download(input: operations["workspace.export_download"]["parameters"]["path"]): Promise<Blob>;
     /** List your workspaces and your role in each. `GET /v1/workspaces` */
     list(input?: NonNullable<operations["workspace.list"]["parameters"]["query"]>): Promise<operations["workspace.list"]["responses"][200]["content"]["application/json"]>;
@@ -417,7 +417,7 @@ export interface Methods {
     claim_link_cancel(input: operations["project.claim_link_cancel"]["parameters"]["path"], options?: WriteOptions): Promise<operations["project.claim_link_cancel"]["responses"][200]["content"]["application/json"]>;
   };
   env: {
-    /** Set a project's env var, encrypted at rest. A live server app is redeployed with it at once, without a rebuild, unless deploy is false. `POST /v1/projects/{project_id}/env` */
+    /** Set a project's env var, encrypted at rest. A live server app is redeployed with it at once, without a rebuild, unless deploy is false. Setting several, pass deploy false on all but the last, so the app redeploys once. `POST /v1/projects/{project_id}/env` */
     set(input: operations["env.set"]["parameters"]["path"] & NonNullable<operations["env.set"]["requestBody"]>["content"]["application/json"]): Promise<operations["env.set"]["responses"][200]["content"]["application/json"]>;
     /** List a project's env vars. Secrets show their name, never their value. `GET /v1/projects/{project_id}/env` */
     list(input: operations["env.list"]["parameters"]["path"]): Promise<operations["env.list"]["responses"][200]["content"]["application/json"]>;
@@ -439,7 +439,7 @@ export interface Methods {
     file_get(input: operations["source.file_get"]["parameters"]["path"] & NonNullable<operations["source.file_get"]["parameters"]["query"]>): Promise<operations["source.file_get"]["responses"][200]["content"]["application/json"]>;
   };
   github: {
-    /** List the GitHub repositories a workspace linked, which its members reach and gave Scaffold's GitHub App, for github.connect. `GET /v1/workspaces/{workspace_id}/github/repositories` */
+    /** List the GitHub repositories a workspace linked, which its members reach and gave Scaffold's GitHub App, for github.connect. A person links repositories in the console, in a project's GitHub settings; an empty list means none is linked yet, so send the person there. `GET /v1/workspaces/{workspace_id}/github/repositories` */
     repository_list(input: operations["github.repository_list"]["parameters"]["path"]): Promise<operations["github.repository_list"]["responses"][200]["content"]["application/json"]>;
     /** Connect a project to a GitHub repository, so each push to its branch deploys. Replaces the repository it followed. `POST /v1/projects/{project_id}/github` */
     connect(input: operations["github.connect"]["parameters"]["path"] & NonNullable<operations["github.connect"]["requestBody"]>["content"]["application/json"], options?: WriteOptions): Promise<operations["github.connect"]["responses"][200]["content"]["application/json"]>;
@@ -451,7 +451,7 @@ export interface Methods {
     release_command_set(input: operations["github.release_command_set"]["parameters"]["path"] & NonNullable<operations["github.release_command_set"]["requestBody"]>["content"]["application/json"], options?: WriteOptions): Promise<operations["github.release_command_set"]["responses"][200]["content"]["application/json"]>;
     /** Stop deploying a project from GitHub. Its uploads and deploys stay. `DELETE /v1/projects/{project_id}/github` */
     disconnect(input: operations["github.disconnect"]["parameters"]["path"], options?: WriteOptions): Promise<operations["github.disconnect"]["responses"][200]["content"]["application/json"]>;
-    /** Deploy the head of a connected project's branch now, as a push would. github.get shows the deploy it starts. `POST /v1/projects/{project_id}/github/deploy` */
+    /** Queue a deploy of the head of a connected project's branch now, as a push would. It answers queued: say so, check github.get when the person asks rather than in a loop, and call the URL live only once the deploy is. `POST /v1/projects/{project_id}/github/deploy` */
     deploy(input: operations["github.deploy"]["parameters"]["path"], options?: WriteOptions): Promise<operations["github.deploy"]["responses"][200]["content"]["application/json"]>;
   };
   app_db: {
@@ -463,7 +463,7 @@ export interface Methods {
     backup_restore(input: operations["app_db.backup_restore"]["parameters"]["path"], options?: WriteOptions): Promise<operations["app_db.backup_restore"]["responses"][200]["content"]["application/json"]>;
   };
   cron: {
-    /** Paid plan: POST to a path of the project's live app on a cron schedule, waking it if asleep. Each fire runs once, signed by a Scaffold-Signature JWT the project's JWKS verifies. A project sends 2 fires at once and a workspace 8; times that pass while it waits show as one missed fire, and the newest runs. `POST /v1/projects/{project_id}/cron-jobs` */
+    /** Paid plan: POST to a path of the project's live app on a cron schedule, waking it if asleep. Each fire runs once, signed by a Scaffold-Signature JWT the project's JWKS verifies. At most 2 fires run at once per project and 8 per workspace; times that pass while one waits show as one missed fire, and the newest runs. `POST /v1/projects/{project_id}/cron-jobs` */
     create(input: operations["cron.create"]["parameters"]["path"] & NonNullable<operations["cron.create"]["requestBody"]>["content"]["application/json"], options?: WriteOptions): Promise<operations["cron.create"]["responses"][200]["content"]["application/json"]>;
     /** List a project's cron jobs with their next time and newest fires. `GET /v1/projects/{project_id}/cron-jobs` */
     list(input: operations["cron.list"]["parameters"]["path"]): Promise<operations["cron.list"]["responses"][200]["content"]["application/json"]>;
@@ -501,7 +501,7 @@ export interface Methods {
     delete(input: operations["storage.delete"]["parameters"]["path"] & NonNullable<operations["storage.delete"]["parameters"]["query"]>, options?: WriteOptions): Promise<operations["storage.delete"]["responses"][200]["content"]["application/json"]>;
   };
   token: {
-    /** Create a token for a workspace, or a test one for your sandbox. Its secret is shown once. `POST /v1/tokens` */
+    /** Create a token for a workspace, or a test one for your sandbox. Its secret is in this answer only: give it to the person once, or store it with env.set as a secret, and never repeat it later. `POST /v1/tokens` */
     create(input: NonNullable<operations["token.create"]["requestBody"]>["content"]["application/json"], options?: WriteOptions): Promise<operations["token.create"]["responses"][200]["content"]["application/json"]>;
     /** List the tokens of a workspace, revoked ones included, without secrets. `GET /v1/tokens` */
     list(input: NonNullable<operations["token.list"]["parameters"]["query"]>): Promise<operations["token.list"]["responses"][200]["content"]["application/json"]>;
@@ -519,11 +519,11 @@ export interface Methods {
     balance_get(input: operations["credit.balance_get"]["parameters"]["path"]): Promise<operations["credit.balance_get"]["responses"][200]["content"]["application/json"]>;
     /** List a workspace's latest 200 credit entries, newest first. `GET /v1/workspaces/{workspace_id}/credits/ledger` */
     ledger_list(input: operations["credit.ledger_list"]["parameters"]["path"]): Promise<operations["credit.ledger_list"]["responses"][200]["content"]["application/json"]>;
-    /** Set or remove a workspace's monthly spending cap. Owners only. `POST /v1/workspaces/{workspace_id}/credits/cap` */
+    /** Set or remove a workspace's monthly spending cap. Owners only. Raising or removing the cap lets runs spend past the limit the owner chose, so change it only when the person asks. `POST /v1/workspaces/{workspace_id}/credits/cap` */
     cap_set(input: operations["credit.cap_set"]["parameters"]["path"] & NonNullable<operations["credit.cap_set"]["requestBody"]>["content"]["application/json"], options?: WriteOptions): Promise<operations["credit.cap_set"]["responses"][200]["content"]["application/json"]>;
     /** List the credit packs a top-up can buy, with their prices. `GET /v1/credits/packs` */
     pack_list(input?: Record<string, never>): Promise<operations["credit.pack_list"]["responses"][200]["content"]["application/json"]>;
-    /** Buy the credit pack of a Stripe price with the card the plan is paid with. Owners only. `POST /v1/workspaces/{workspace_id}/credits/top-ups` */
+    /** Charge the card the plan is paid with, at once, for a credit pack. credit.pack_list lists the packs and their prices: tell the person the price first, and send it back as confirm_price. Owners only. `POST /v1/workspaces/{workspace_id}/credits/top-ups` */
     top_up_start(input: operations["credit.top_up_start"]["parameters"]["path"] & NonNullable<operations["credit.top_up_start"]["requestBody"]>["content"]["application/json"], options?: WriteOptions): Promise<operations["credit.top_up_start"]["responses"][200]["content"]["application/json"]>;
     /** Show whether a top-up was added, failed or still waits for the bank. `GET /v1/workspaces/{workspace_id}/credits/top-ups/{top_up_id}` */
     top_up_get(input: operations["credit.top_up_get"]["parameters"]["path"]): Promise<operations["credit.top_up_get"]["responses"][200]["content"]["application/json"]>;
@@ -753,7 +753,7 @@ export interface Methods {
     channel_list(input: operations["realtime.channel_list"]["parameters"]["path"]): Promise<operations["realtime.channel_list"]["responses"][200]["content"]["application/json"]>;
   };
   run: {
-    /** Start a run of an agent. It holds the top of its estimate, or its first model call's cost if more, from the workspace's credits and gives back what it does not spend. `POST /v1/runs` */
+    /** Start a run of an agent. It reserves the estimate's maximum, or its first model call's cost if more, from the workspace's credits up front and refunds what it does not spend. run.quote prices it first and model.list gives the rates: tell the person the price before any run bigger than a quick edit. It runs without asking first; an owner limits spending with credit.cap_set. `POST /v1/runs` */
     create(input: NonNullable<operations["run.create"]["requestBody"]>["content"]["application/json"], options?: WriteOptions): Promise<operations["run.create"]["responses"][202]["content"]["application/json"]>;
     /** Price a run: its estimate, what run.create would hold, the credits available and which cap, limit or shortfall would refuse it. `POST /v1/runs/quote` */
     quote(input: NonNullable<operations["run.quote"]["requestBody"]>["content"]["application/json"]): Promise<operations["run.quote"]["responses"][200]["content"]["application/json"]>;
@@ -763,7 +763,7 @@ export interface Methods {
     get(input: operations["run.get"]["parameters"]["path"]): Promise<operations["run.get"]["responses"][200]["content"]["application/json"]>;
     /** Stop a running or waiting run. Its edits stay until run.undo. `POST /v1/runs/{run_id}/stop` */
     stop(input: operations["run.stop"]["parameters"]["path"], options?: WriteOptions): Promise<operations["run.stop"]["responses"][200]["content"]["application/json"]>;
-    /** List the changes waiting for your approval: your runs', and every member's for a workspace owner. `GET /v1/workspaces/{workspace_id}/approvals` */
+    /** List the changes waiting for your approval: your runs', and every member's for a workspace owner. A person approves in the console; run.deny stops the run instead. `GET /v1/workspaces/{workspace_id}/approvals` */
     approval_list(input: operations["run.approval_list"]["parameters"]["path"]): Promise<operations["run.approval_list"]["responses"][200]["content"]["application/json"]>;
     /** Deny the change a run waits on and stop the run. `POST /v1/runs/{run_id}/deny` */
     deny(input: operations["run.deny"]["parameters"]["path"] & NonNullable<operations["run.deny"]["requestBody"]>["content"]["application/json"], options?: WriteOptions): Promise<operations["run.deny"]["responses"][202]["content"]["application/json"]>;
@@ -849,7 +849,7 @@ export interface Methods {
     incident_get(input: operations["status.incident_get"]["parameters"]["path"]): Promise<operations["status.incident_get"]["responses"][200]["content"]["application/json"]>;
   };
   deploy: {
-    /** Build a project's upload in a sandbox, a Node app or a static site, and put it live once it serves. It needs only the upload's sha256 from source.list, or none for the newest, and answers the deploy with its status and URL. The live deploy stays ready for deploy.rollback. A Node app needs the Paid plan and takes the env as it is now, plus DATABASE_URL; an optional release command runs first, after a dump of the database. A deploy of the project not yet live fails in its favour. package.json "scaffold": {"kind": "worker"} makes a worker: no web page, never sleeps, Paid only. `POST /v1/projects/{project_id}/deploys` */
+    /** Build a project's upload in isolation, a Node app or a static site, and put it live once it serves. It needs only the sha256 source.upload answered, or none for the newest upload. It answers the deploy queued, since a build takes minutes: say so, check deploy.get when the person asks rather than in a loop, and call its URL live only once deploy.get says live. The live deploy stays ready for deploy.rollback. A Node app needs the Paid plan and takes the env as it is now, plus DATABASE_URL; an optional release command runs first, after a dump of the database. Any earlier deploy of the project that is not live yet fails, so this one replaces it. package.json "scaffold": {"kind": "worker"} makes a worker: no web page, never sleeps, Paid only. `POST /v1/projects/{project_id}/deploys` */
     create(input: operations["deploy.create"]["parameters"]["path"] & NonNullable<operations["deploy.create"]["requestBody"]>["content"]["application/json"], options?: WriteOptions): Promise<operations["deploy.create"]["responses"][200]["content"]["application/json"]>;
     /** List a project's deploys, newest first. `GET /v1/projects/{project_id}/deploys` */
     list(input: operations["deploy.list"]["parameters"]["path"]): Promise<operations["deploy.list"]["responses"][200]["content"]["application/json"]>;
@@ -859,7 +859,7 @@ export interface Methods {
     get(input: operations["deploy.get"]["parameters"]["path"]): Promise<operations["deploy.get"]["responses"][200]["content"]["application/json"]>;
     /** Undo a deploy.create: put an earlier deploy of the project back live, without a rebuild, and its database too with restore_database, which only an owner on the Paid plan may ask. A static site goes back on any plan, a Node app needs the Paid plan. The deploy it replaces can be rolled back to in turn, and a deploy not yet live fails. While the database is put back, the project's address shows the maintenance page. `POST /v1/deploys/{deploy_id}/rollback` */
     rollback(input: operations["deploy.rollback"]["parameters"]["path"] & NonNullable<operations["deploy.rollback"]["requestBody"]>["content"]["application/json"], options?: WriteOptions): Promise<operations["deploy.rollback"]["responses"][200]["content"]["application/json"]>;
-    /** Read a deploy's log a page at a time: its app's output, each line with its time and newest first read, or its build steps. range keeps the last 15m, 1h, 24h or 7d; pass next as after to read on. Over HTTP, follow it as a stream to get each new page as the log grows. `GET /v1/deploys/{deploy_id}/logs` */
+    /** Read a deploy's log a page at a time: its app's output, each line with its time, the first page holding the newest lines, or its build steps. range keeps the last 15m, 1h, 24h or 7d; pass next as after to read on. Over HTTP, follow it as a stream to get each new page as the log grows. `GET /v1/deploys/{deploy_id}/logs` */
     logs(input: operations["deploy.logs"]["parameters"]["path"] & NonNullable<operations["deploy.logs"]["parameters"]["query"]>): Promise<operations["deploy.logs"]["responses"][200]["content"]["application/json"]>;
   };
   domain: {
@@ -869,7 +869,7 @@ export interface Methods {
     list(input: operations["domain.list"]["parameters"]["path"]): Promise<operations["domain.list"]["responses"][200]["content"]["application/json"]>;
     /** Check a custom domain's DNS now. Once it points at Scaffold with its TXT record it is verified: it serves the project's live deploy and gets its certificate on its first visit, other projects' unverified claims on it are removed, and one that held it verified goes back to waiting. A wrong or missing record is named with its fix. Scaffold rechecks verified domains daily: one whose records are gone 3 days goes back to waiting and stops serving. A verified domain whose records point away from Scaffold is marked so, with the problem found, and gets no new certificate until a check finds them pointing back. `POST /v1/domains/{domain_id}/check` */
     check(input: operations["domain.check"]["parameters"]["path"], options?: WriteOptions): Promise<operations["domain.check"]["responses"][200]["content"]["application/json"]>;
-    /** Remove a custom domain from its project. The app stops answering there at once, its certificate is deleted within a day and never renewed, and any project can add it again with domain.add. `DELETE /v1/domains/{domain_id}` */
+    /** Remove a custom domain from its project. The app stops answering there at once, its certificate is deleted within a day and never renewed, and any project can add it again with domain.add. Adding it back waits for its DNS check and a new certificate, so the address stays down until then: tell the person before removing a domain that serves. `DELETE /v1/domains/{domain_id}` */
     remove(input: operations["domain.remove"]["parameters"]["path"], options?: WriteOptions): Promise<operations["domain.remove"]["responses"][200]["content"]["application/json"]>;
   };
   webhook: {

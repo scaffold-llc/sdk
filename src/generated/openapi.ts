@@ -824,7 +824,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description A ready export's zip, as base64. Needs write access, since it holds every project's database. */
+        /** @description A ready export's zip, as base64. Needs write access, since it holds every project's database: download it only when the person asks for the export itself. */
         get: operations["workspace.export_download"];
         put?: never;
         post?: never;
@@ -1204,7 +1204,7 @@ export interface paths {
         /** @description List a project's env vars. Secrets show their name, never their value. */
         get: operations["env.list"];
         put?: never;
-        /** @description Set a project's env var, encrypted at rest. A live server app is redeployed with it at once, without a rebuild, unless deploy is false. */
+        /** @description Set a project's env var, encrypted at rest. A live server app is redeployed with it at once, without a rebuild, unless deploy is false. Setting several, pass deploy false on all but the last, so the app redeploys once. */
         post: operations["env.set"];
         delete?: never;
         options?: never;
@@ -1306,7 +1306,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description List the GitHub repositories a workspace linked, which its members reach and gave Scaffold's GitHub App, for github.connect. */
+        /** @description List the GitHub repositories a workspace linked, which its members reach and gave Scaffold's GitHub App, for github.connect. A person links repositories in the console, in a project's GitHub settings; an empty list means none is linked yet, so send the person there. */
         get: operations["github.repository_list"];
         put?: never;
         post?: never;
@@ -1362,7 +1362,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Deploy the head of a connected project's branch now, as a push would. github.get shows the deploy it starts. */
+        /** @description Queue a deploy of the head of a connected project's branch now, as a push would. It answers queued: say so, check github.get when the person asks rather than in a loop, and call the URL live only once the deploy is. */
         post: operations["github.deploy"];
         delete?: never;
         options?: never;
@@ -1533,7 +1533,7 @@ export interface paths {
         /** @description List a project's cron jobs with their next time and newest fires. */
         get: operations["cron.list"];
         put?: never;
-        /** @description Paid plan: POST to a path of the project's live app on a cron schedule, waking it if asleep. Each fire runs once, signed by a Scaffold-Signature JWT the project's JWKS verifies. A project sends 2 fires at once and a workspace 8; times that pass while it waits show as one missed fire, and the newest runs. */
+        /** @description Paid plan: POST to a path of the project's live app on a cron schedule, waking it if asleep. Each fire runs once, signed by a Scaffold-Signature JWT the project's JWKS verifies. At most 2 fires run at once per project and 8 per workspace; times that pass while one waits show as one missed fire, and the newest runs. */
         post: operations["cron.create"];
         delete?: never;
         options?: never;
@@ -1743,7 +1743,7 @@ export interface paths {
         /** @description List the tokens of a workspace, revoked ones included, without secrets. */
         get: operations["token.list"];
         put?: never;
-        /** @description Create a token for a workspace, or a test one for your sandbox. Its secret is shown once. */
+        /** @description Create a token for a workspace, or a test one for your sandbox. Its secret is in this answer only: give it to the person once, or store it with env.set as a secret, and never repeat it later. */
         post: operations["token.create"];
         delete?: never;
         options?: never;
@@ -1998,7 +1998,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Set or remove a workspace's monthly spending cap. Owners only. */
+        /** @description Set or remove a workspace's monthly spending cap. Owners only. Raising or removing the cap lets runs spend past the limit the owner chose, so change it only when the person asks. */
         post: operations["credit.cap_set"];
         delete?: never;
         options?: never;
@@ -2032,7 +2032,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** @description Buy the credit pack of a Stripe price with the card the plan is paid with. Owners only. */
+        /** @description Charge the card the plan is paid with, at once, for a credit pack. credit.pack_list lists the packs and their prices: tell the person the price first, and send it back as confirm_price. Owners only. */
         post: operations["credit.top_up_start"];
         delete?: never;
         options?: never;
@@ -3982,7 +3982,7 @@ export interface paths {
         /** @description List agent runs, newest first. */
         get: operations["run.list"];
         put?: never;
-        /** @description Start a run of an agent. It holds the top of its estimate, or its first model call's cost if more, from the workspace's credits and gives back what it does not spend. */
+        /** @description Start a run of an agent. It reserves the estimate's maximum, or its first model call's cost if more, from the workspace's credits up front and refunds what it does not spend. run.quote prices it first and model.list gives the rates: tell the person the price before any run bigger than a quick edit. It runs without asking first; an owner limits spending with credit.cap_set. */
         post: operations["run.create"];
         delete?: never;
         options?: never;
@@ -4048,7 +4048,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description List the changes waiting for your approval: your runs', and every member's for a workspace owner. */
+        /** @description List the changes waiting for your approval: your runs', and every member's for a workspace owner. A person approves in the console; run.deny stops the run instead. */
         get: operations["run.approval_list"];
         put?: never;
         post?: never;
@@ -4992,7 +4992,7 @@ export interface paths {
         /** @description List a project's deploys, newest first. */
         get: operations["deploy.list"];
         put?: never;
-        /** @description Build a project's upload in a sandbox, a Node app or a static site, and put it live once it serves. It needs only the upload's sha256 from source.list, or none for the newest, and answers the deploy with its status and URL. The live deploy stays ready for deploy.rollback. A Node app needs the Paid plan and takes the env as it is now, plus DATABASE_URL; an optional release command runs first, after a dump of the database. A deploy of the project not yet live fails in its favour. package.json "scaffold": {"kind": "worker"} makes a worker: no web page, never sleeps, Paid only. */
+        /** @description Build a project's upload in isolation, a Node app or a static site, and put it live once it serves. It needs only the sha256 source.upload answered, or none for the newest upload. It answers the deploy queued, since a build takes minutes: say so, check deploy.get when the person asks rather than in a loop, and call its URL live only once deploy.get says live. The live deploy stays ready for deploy.rollback. A Node app needs the Paid plan and takes the env as it is now, plus DATABASE_URL; an optional release command runs first, after a dump of the database. Any earlier deploy of the project that is not live yet fails, so this one replaces it. package.json "scaffold": {"kind": "worker"} makes a worker: no web page, never sleeps, Paid only. */
         post: operations["deploy.create"];
         delete?: never;
         options?: never;
@@ -5096,7 +5096,7 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        /** @description Remove a custom domain from its project. The app stops answering there at once, its certificate is deleted within a day and never renewed, and any project can add it again with domain.add. */
+        /** @description Remove a custom domain from its project. The app stops answering there at once, its certificate is deleted within a day and never renewed, and any project can add it again with domain.add. Adding it back waits for its DNS check and a new certificate, so the address stays down until then: tell the person before removing a domain that serves. */
         delete: operations["domain.remove"];
         options?: never;
         head?: never;
@@ -5731,6 +5731,15 @@ export interface components {
             taken_at: string;
         };
         AppDbBackupKind: "daily" | "before_restore" | "before_migrations" | "before_rollback";
+        /** @description A project's latest restore and dump, as a notification of one ending shows them now. */
+        AppDbBackupNotice: {
+            /** @description None once it expired. */
+            dump?: components["schemas"]["AppDbDump"] | null;
+            project_id: components["schemas"]["ProjectId"];
+            project_name: string;
+            project_slug: string;
+            restore?: components["schemas"]["AppDbRestore"] | null;
+        };
         /**
          * @description A project's backups, newest first, with its latest restore and its latest dump still
          *     downloadable or being prepared.
@@ -8215,6 +8224,11 @@ export interface components {
             alert?: components["schemas"]["Alert"] | null;
             /** @description For an approval, the last change its run asked about, as it stands now. */
             approval?: components["schemas"]["RunApproval"] | null;
+            /**
+             * @description For a database restore or dump, the project's latest one as it stands now. None once
+             *     the project was deleted or left the workspace.
+             */
+            backup?: components["schemas"]["AppDbBackupNotice"] | null;
             /** @description For a mention in a comment, the comment as it is now. None once it was deleted. */
             comment?: components["schemas"]["Comment"] | null;
             /** @description Credits only: the month's spend and cap when it last crossed three quarters. */
@@ -8243,7 +8257,7 @@ export interface components {
             /** @description None while unread. */
             read_at?: string | null;
             source: components["schemas"]["NotificationSource"];
-            /** @description What it is about: the run for an approval, the task for an assignment, the comment, page or record for a mention, the workspace for credits, a low balance and a top-up request, the project for a failed deploy or a database quota, and the deploy put back live for a rollback. */
+            /** @description What it is about: the run for an approval, the task for an assignment, the comment, page or record for a mention, the workspace for credits, a low or spent balance and a top-up request, the project for a failed deploy, a database quota, restore or dump, the endpoint for a webhook turned off, and the deploy put back live for a rollback. */
             subject_id: components["schemas"]["AnyId"];
             /**
              * @description For an assignment or mention, the task as it is now. None for credits, a record of
@@ -8255,6 +8269,11 @@ export interface components {
              * @description How often it happened, each time raising this row again rather than another.
              */
             times: number;
+            /**
+             * @description For a webhook turned off, the endpoint as it stands now. None once it was deleted or its
+             *     project left the workspace.
+             */
+            webhook?: components["schemas"]["WebhookNotice"] | null;
             workspace_id: components["schemas"]["WorkspaceId"];
         };
         NotificationActor: {
@@ -8268,7 +8287,7 @@ export interface components {
             /** @description 1 to 1000 of your notifications in the workspace. */
             notification_ids: components["schemas"]["NotificationId"][];
         };
-        NotificationKind: "approval" | "assignment" | "mention" | "credits" | "low_balance" | "top_up_request" | "alert" | "deploy_failed" | "rollback" | "database_quota" | "domain_unverified";
+        NotificationKind: "approval" | "assignment" | "mention" | "credits" | "low_balance" | "top_up_request" | "alert" | "deploy_failed" | "rollback" | "database_quota" | "domain_unverified" | "out_of_credits" | "webhook_disabled" | "database_restore" | "database_dump";
         NotificationPage: {
             data: components["schemas"]["Notification"][];
             has_more: boolean;
@@ -8398,11 +8417,16 @@ export interface components {
         /** @description The body half of `credit.top_up_start`'s input. */
         Pack: {
             /**
+             * @description The pack's price as credit.pack_list lists it and the owner saw it, refused unless it is
+             *     what the card would be charged.
+             */
+            confirm_price: components["schemas"]["Money"];
+            /**
              * @description Must be true: the owner ticked a box asking for the credits at once, so withdrawing
              *     refunds only the unused ones.
              */
             express_start: boolean;
-            /** @description The Stripe Price of a top-up pack. */
+            /** @description A price_id from credit.pack_list, which lists each pack's price. */
             price_id: string;
         };
         Packs: {
@@ -11201,6 +11225,17 @@ export interface components {
         WebhookEventId: string;
         /** @description What happened in a project, posted to the endpoints that take its type. */
         WebhookEventType: "deploy.live" | "deploy.failed" | "deploy.rolled_back" | "app_user.signed_up" | "app_user.deleted";
+        /** @description An endpoint Scaffold turned off, as its inbox row shows it now. */
+        WebhookNotice: {
+            /** @description Whether someone turned it on again since. */
+            enabled: boolean;
+            endpoint_id: components["schemas"]["WebhookEndpointId"];
+            /** @description Like `hooks.example.com`. */
+            host: string;
+            project_id: components["schemas"]["ProjectId"];
+            project_name: string;
+            project_slug: string;
+        };
         WebhookTry: {
             at: string;
             /** Format: uint32 */
@@ -28055,6 +28090,8 @@ export interface operations {
                 kind?: components["schemas"]["SearchKind"];
                 /** @description 1 to 100, 50 when omitted. */
                 limit?: number;
+                /** @description How many of the best matches to skip, for the next page: the hits read so far. */
+                offset?: number;
                 /** @description Words of 3 or more characters, or a record key. */
                 query: string;
             };
