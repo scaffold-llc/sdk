@@ -1,18 +1,21 @@
-import { readFile } from "node:fs/promises";
 import { setTimeout as sleep } from "node:timers/promises";
 import { Scaffold } from "@scaffold-llc/sdk";
 
 // Reads SCAFFOLD_TOKEN from the environment
 const scaffold = new Scaffold();
-const workspace_id = process.env.SCAFFOLD_WORKSPACE!;
+const workspace_id = process.env.SCAFFOLD_WORKSPACE;
+if (!workspace_id) throw new Error("Set SCAFFOLD_WORKSPACE to your workspace id, from Settings, then Workspace");
 
-// Plan: put the work on the board
-const task = await scaffold.task.create({
-  workspace_id,
-  title: "Ship the booking page",
-  status: "doing",
-  labels: ["launch"],
-});
+// Plan: tasks live in a Tasks database, so make one and put the work on its board. Within
+// 24 hours, the keys make a second run answer the same board and task instead of adding more.
+const board = await scaffold.database.create(
+  { workspace_id, name: "Tasks", template: "tasks" },
+  { idempotencyKey: `quickstart-board-${workspace_id}` },
+);
+const task = await scaffold.task.create(
+  { workspace_id, database_id: board.id, title: "Ship the booking page", status: "doing", labels: ["launch"] },
+  { idempotencyKey: `quickstart-task-${workspace_id}` },
+);
 console.log(`Task ${task.key} is on the board`);
 
 // Project: create the project the work ships in
@@ -22,9 +25,8 @@ const project = await scaffold.project.create({
 });
 console.log(`Project ${project.slug} is ready at ${project.hostname}`);
 
-// Deploy: upload the app's code and deploy it
-const archive = await readFile("pinecrest-web.zip");
-await scaffold.source.upload({ project_id: project.id, archive });
+// Deploy: upload the app folder's files and deploy them
+await scaffold.source.upload({ project_id: project.id, dir: "app" });
 const deploy = await scaffold.deploy.create({ project_id: project.id });
 
 // Logs: print the build's steps until it is live or failed

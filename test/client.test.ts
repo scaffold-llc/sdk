@@ -1,6 +1,9 @@
 import { existsSync, readFileSync } from "node:fs";
+import { mkdir, mkdtemp, rm, symlink, writeFile } from "node:fs/promises";
 import { createServer, type IncomingHttpHeaders, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { Scaffold, ScaffoldError } from "../src/index.js";
 
@@ -16,7 +19,7 @@ let answers: Response[];
 
 const json = (body: unknown, status = 200, headers: Record<string, string> = {}) => new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json", ...headers } });
 const failed = (status: number, type: string, headers: Record<string, string> = {}, param?: string) =>
-  json({ error: { type, message: `${type} happened`, param, request_id: "err_01jbz6f7h9k1m3n5q7s9t1v3w5", doc: "https://scaffold.llc/docs#errors" } }, status, headers);
+  json({ error: { type, message: `${type} happened`, param, request_id: "err_01jbz6f7h9k1m3n5q7s9t1v3w5", doc: "https://scaffold.llc/docs/errors#types" } }, status, headers);
 
 beforeEach(() => {
   sent = [];
@@ -58,6 +61,84 @@ describe("calling a command", () => {
     expect(sent[0]!.url.pathname).toBe("/v1/projects/prj_1/sources");
     expect(sent[0]!.headers.get("Content-Type")).toBe("application/zip");
     expect(sent[0]!.body).toBe(zip);
+  });
+
+  test("uploads a folder's text files by path, leaving out node_modules and dot folders", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "scaffold-sdk-"));
+    try {
+      const files = { "package.json": '{ "main": "server.js" }', "server.js": "listen()", "src/routes/home.js": "export default 1;", ".env.example": "PORT=", "node_modules/a/index.js": "a", ".git/HEAD": "ref", "src/.cache/x.js": "x" };
+      for (const [path, text] of Object.entries(files)) {
+        await mkdir(dirname(join(dir, path)), { recursive: true });
+        await writeFile(join(dir, path), text);
+      }
+      answers.push(json({ sha256: "ab12" }));
+      await new Scaffold({ token: "scf_live_a" }).source.upload({ project_id: "prj_1", dir }, { idempotencyKey: "upload-1" });
+      expect(sent).toHaveLength(1);
+      expect(`${sent[0]!.method} ${sent[0]!.url.pathname}`).toBe("POST /v1/projects/prj_1/sources/files");
+      expect(sent[0]!.headers.get("Idempotency-Key")).toBe("upload-1");
+      expect(sent[0]!.body).toEqual({ files: { "package.json": '{ "main": "server.js" }', "server.js": "listen()", "src/routes/home.js": "export default 1;", ".env.example": "PORT=" } });
+    } finally {
+      await rm(dir, { recursive: true });
+    }
+  });
+
+  test("refuses a folder holding a file that is not text, naming it, before sending anything", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "scaffold-sdk-"));
+    try {
+      await mkdir(join(dir, "public"));
+      await writeFile(join(dir, "index.html"), "<h1>Pinecrest</h1>");
+      await writeFile(join(dir, "public", "logo.png"), new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0xff]));
+      await expect(new Scaffold({ token: "scf_live_a" }).source.upload({ project_id: "prj_1", dir })).rejects.toThrow(/public\/logo\.png.*archive/);
+      expect(sent).toEqual([]);
+    } finally {
+      await rm(dir, { recursive: true });
+    }
+  });
+
+  test("sends each file's text exactly, a leading byte order mark and a root file named __proto__ included", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "scaffold-sdk-"));
+    try {
+      await writeFile(join(dir, "index.html"), "﻿<h1>Café</h1>");
+      await writeFile(join(dir, "__proto__"), "kept");
+      await new Scaffold({ token: "scf_live_a" }).source.upload({ project_id: "prj_1", dir });
+      const files = (sent[0]!.body as { files: Record<string, string> }).files;
+      expect(Object.keys(files).sort()).toEqual(["__proto__", "index.html"]);
+      expect(files["index.html"]).toBe("﻿<h1>Café</h1>");
+    } finally {
+      await rm(dir, { recursive: true });
+    }
+  });
+
+  test("leaves out a linked node_modules and refuses a linked file by name, before sending anything", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "scaffold-sdk-"));
+    const outside = await mkdtemp(join(tmpdir(), "scaffold-sdk-outside-"));
+    try {
+      await writeFile(join(dir, "index.html"), "<h1>Pinecrest</h1>");
+      await writeFile(join(outside, "secret.txt"), "not for the app");
+      await symlink(outside, join(dir, "node_modules"), "junction");
+      await new Scaffold({ token: "scf_live_a" }).source.upload({ project_id: "prj_1", dir });
+      expect(sent[0]!.body).toEqual({ files: { "index.html": "<h1>Pinecrest</h1>" } });
+
+      sent = [];
+      await symlink(join(outside, "secret.txt"), join(dir, "secret.txt"), "file");
+      await expect(new Scaffold({ token: "scf_live_a" }).source.upload({ project_id: "prj_1", dir })).rejects.toThrow(/secret\.txt is a link/);
+      expect(sent).toEqual([]);
+    } finally {
+      await rm(dir, { recursive: true });
+      await rm(outside, { recursive: true });
+    }
+  });
+
+  test("refuses a folder whose files as JSON are over one request's limit, before sending anything", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "scaffold-sdk-"));
+    try {
+      // 12 MB of a control character, written as six characters each in JSON: about 72 MB.
+      await writeFile(join(dir, "data.txt"), new Uint8Array(12 * 1024 * 1024).fill(1));
+      await expect(new Scaffold({ token: "scf_live_a" }).source.upload({ project_id: "prj_1", dir })).rejects.toThrow(/67 MB as JSON.*archive/);
+      expect(sent).toEqual([]);
+    } finally {
+      await rm(dir, { recursive: true });
+    }
   });
 
   test("sends a read's input as its query and a delete's path field in its path", async () => {
@@ -169,7 +250,37 @@ describe("errors", () => {
     answers.push(failed(402, "credits_exhausted"));
     const error = await new Scaffold({ token: "scf_live_a" }).run.create({ workspace_id: "wsp_1", agent: "planner", prompt: "Plan next week" }).catch((caught: unknown) => caught);
     expect(error).toBeInstanceOf(ScaffoldError);
-    expect(error).toMatchObject({ status: 402, type: "credits_exhausted", message: "credits_exhausted happened", requestId: "err_01jbz6f7h9k1m3n5q7s9t1v3w5" });
+    expect(error).toMatchObject({ status: 402, type: "credits_exhausted", message: "credits_exhausted happened", requestId: "err_01jbz6f7h9k1m3n5q7s9t1v3w5", doc: "https://scaffold.llc/docs/errors#types" });
+  });
+
+  test("a 401 to a call sent with no token says how to give one", async () => {
+    vi.stubEnv("SCAFFOLD_TOKEN", undefined);
+    answers.push(failed(401, "unauthorized"), failed(401, "unauthorized"));
+    await expect(new Scaffold().task.list({ workspace_id: "ws_1" })).rejects.toMatchObject({ status: 401, type: "unauthorized", message: expect.stringContaining("SCAFFOLD_TOKEN") });
+    await expect(new Scaffold({ token: "scf_live_revoked" }).task.list({ workspace_id: "ws_1" })).rejects.toMatchObject({ message: "unauthorized happened" });
+  });
+
+  test("a lost connection throws a network ScaffoldError, after maxRetries for a read and at once for a write a retry could run twice", async () => {
+    vi.stubGlobal("fetch", async (url: URL, init: RequestInit) => {
+      sent.push({ method: init.method!, url: new URL(url), headers: new Headers(init.headers), body: init.body });
+      throw new TypeError("fetch failed", { cause: new Error("connect ECONNREFUSED 127.0.0.1:443") });
+    });
+    const scaffold = new Scaffold({ token: "scf_live_a", maxRetries: 1 });
+    const error = await scaffold.account.get().catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(ScaffoldError);
+    expect(error).toMatchObject({ status: 0, type: "network", message: expect.stringContaining("ECONNREFUSED") });
+    expect(sent).toHaveLength(2);
+
+    sent = [];
+    await expect(scaffold.env.set({ project_id: "prj_1", name: "A", value: "b" })).rejects.toMatchObject({ type: "network" });
+    expect(sent).toHaveLength(1);
+  });
+
+  test("no answer within timeout throws a timeout ScaffoldError", async () => {
+    vi.stubGlobal("fetch", (_url: URL, init: RequestInit) => new Promise((_resolve, reject) => init.signal!.addEventListener("abort", () => reject(init.signal!.reason))));
+    const error = await new Scaffold({ token: "scf_live_a", timeout: 10, maxRetries: 0 }).account.get().catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(ScaffoldError);
+    expect(error).toMatchObject({ status: 0, type: "timeout", message: expect.stringContaining("10 ms") });
   });
 
   test("a validation failure names the field at fault", async () => {

@@ -1,4 +1,5 @@
 import { COMMANDS, type ErrorCode, type Methods } from "./generated/methods.js";
+import type { operations } from "./generated/openapi.js";
 
 /** The API version this SDK was built for. */
 export const API_VERSION = "2026-10-01";
@@ -10,7 +11,7 @@ export interface ScaffoldOptions {
   baseUrl?: string;
   /** Milliseconds per request. Defaults to `30000`. */
   timeout?: number;
-  /** Retries for 429 and 5xx answers, with backoff. Defaults to `2`. */
+  /** Retries for 429 and 5xx answers, timeouts and lost connections, with backoff. Defaults to `2`. */
   maxRetries?: number;
   /** The API version every request sends as `Scaffold-Version`. Defaults to the SDK's own, `2026-10-01`. */
   version?: string;
@@ -46,9 +47,10 @@ export class ScaffoldError extends Error {
   override name = "ScaffoldError";
 
   constructor(
+    /** `0` when no answer came. */
     readonly status: number,
-    /** `unexpected_response` when something other than Scaffold answered, like a proxy. */
-    readonly type: ErrorCode | "unexpected_response",
+    /** `unexpected_response` when something other than Scaffold answered, like a proxy; `timeout` or `network` when no answer came within `timeout` or the connection failed. */
+    readonly type: ErrorCode | "unexpected_response" | "timeout" | "network",
     message: string,
     /** The input field at fault, like `title`. */
     readonly param: string | undefined,
@@ -57,6 +59,8 @@ export class ScaffoldError extends Error {
     readonly details: unknown,
     /** Seconds the answer asked to wait before trying again. */
     readonly retryAfter: number | undefined,
+    /** The docs on every error type and what to do about it. */
+    readonly doc?: string,
   ) {
     super(message);
   }
@@ -87,7 +91,12 @@ export class List<Page, Item> implements PromiseLike<Page>, AsyncIterable<Item> 
 type Input = Record<string, unknown>;
 type CallOptions = WriteOptions & AppServerOptions;
 
-export interface Scaffold extends Methods {}
+export interface Scaffold extends Methods {
+  source: Methods["source"] & {
+    /** Upload a folder's files, read from disk and sent with `source.upload_files`, leaving out `node_modules` and folders whose name starts with a dot, like `.git`. Every file must be UTF-8 text and not a link, at most 10,000 files and 67 MB as JSON; for images, other binary files or bigger folders, zip the folder and pass it as `archive`. Needs Node. */
+    upload(input: operations["source.upload_files"]["parameters"]["path"] & { dir: string }, options?: WriteOptions): ReturnType<Methods["source"]["upload_files"]>;
+  };
+}
 
 /** The Scaffold API client: `scaffold.<resource>.<action>(input)` for every public command. */
 export class Scaffold {
@@ -115,6 +124,9 @@ export class Scaffold {
       });
       Object.assign(this, { [resource]: Object.fromEntries(methods) });
     }
+    const source = this.source as unknown as Record<string, (input: Input, options?: CallOptions) => Promise<unknown>>;
+    const { upload, upload_files } = source;
+    source.upload = async (input, options) => (input.dir === undefined ? upload!(input, options) : upload_files!({ project_id: input.project_id, files: await readFolder(String(input.dir)) }, options));
   }
 
   async #call(route: Route, input: Input, options: CallOptions): Promise<unknown> {
@@ -148,17 +160,78 @@ export class Scaffold {
     }
 
     for (let attempt = 0; ; attempt++) {
-      // A redirect would carry the app secret to wherever it points, so it fails as unexpected_response.
-      const response = await fetch(url, { method: route.method, headers, body, redirect: "manual", signal: AbortSignal.timeout(this.#timeout) });
-      if (response.ok) return response.headers.get("Content-Type")?.includes("json") ? response.json() : response.blob();
-      const error = await failure(response);
-      // A 429 or 503 never ran. A 501 answers the same until the platform changes. Any other 5xx
-      // is sent again only when that cannot run it twice.
-      const retryable = response.status === 429 || response.status === 503 || (response.status >= 500 && response.status !== 501 && (route.method === "GET" || route.idempotent));
+      let error: ScaffoldError;
+      try {
+        // A redirect would carry the app secret to wherever it points, so it fails as unexpected_response.
+        const response = await fetch(url, { method: route.method, headers, body, redirect: "manual", signal: AbortSignal.timeout(this.#timeout) });
+        if (response.ok) return await (response.headers.get("Content-Type")?.includes("json") ? response.json() : response.blob());
+        error = await failure(response);
+        if (error.status === 401 && !route.appServer && !this.#token) error.message = "no token was sent: pass { token } to new Scaffold() or set SCAFFOLD_TOKEN";
+      } catch (caught) {
+        error = unanswered(caught, `${route.method} ${route.path}`, this.#timeout);
+      }
+      // A 429 or 503 never ran. A 501 answers the same until the platform changes. Any other 5xx,
+      // or no answer, is sent again only when that cannot run it twice.
+      const retryable = error.status === 429 || error.status === 503 || ((error.status === 0 || (error.status >= 500 && error.status !== 501)) && (route.method === "GET" || route.idempotent));
       if (!retryable || attempt >= this.#maxRetries) throw error;
       await new Promise((resolve) => setTimeout(resolve, (error.retryAfter ?? backoff(attempt)) * 1000));
     }
   }
+}
+
+/** A call that got no answer as a ScaffoldError: `timeout` past `timeout` ms, `network` when the connection failed. Anything else is thrown as it is. */
+function unanswered(caught: unknown, call: string, timeout: number): ScaffoldError {
+  if (caught instanceof DOMException && caught.name === "TimeoutError") return new ScaffoldError(0, "timeout", `${call} got no answer within ${timeout} ms`, undefined, undefined, undefined, undefined);
+  if (!(caught instanceof TypeError)) throw caught;
+  const reason = caught.cause instanceof Error ? caught.cause.message : caught.message;
+  const error = new ScaffoldError(0, "network", `${call} could not reach Scaffold: ${reason}`, undefined, undefined, undefined, undefined);
+  error.cause = caught;
+  return error;
+}
+
+const MAX_FILES = 10_000;
+// The server's MCP_BODY_BYTES, the most one request body may hold, here the files as JSON.
+const MAX_BODY_BYTES = 70_953_644;
+// A variable, so bundlers for runtimes without node:fs leave the import alone.
+const NODE_FS = "node:fs/promises";
+
+interface NodeFs {
+  readdir(path: string, options: { withFileTypes: true }): Promise<{ name: string; isDirectory(): boolean; isFile(): boolean }[]>;
+  readFile(path: string): Promise<Uint8Array>;
+}
+
+/** The text of each file under `dir` by its path from there, as `source.upload_files` takes them, within its limits. */
+async function readFolder(dir: string): Promise<Record<string, string>> {
+  const { readdir, readFile } = (await import(NODE_FS)) as NodeFs;
+  // ignoreBOM keeps a leading byte order mark in the text, so the file arrives as it is on disk.
+  const utf8 = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true });
+  const encoder = new TextEncoder();
+  const files: Record<string, string> = Object.create(null);
+  let count = 0;
+  let body = 0;
+  const walk = async (folder: string): Promise<void> => {
+    for (const entry of await readdir(`${dir}/${folder}`, { withFileTypes: true })) {
+      const path = folder + entry.name;
+      if (!entry.isFile() && (entry.name === "node_modules" || entry.name.startsWith("."))) continue;
+      if (entry.isDirectory()) {
+        await walk(`${path}/`);
+        continue;
+      }
+      if (!entry.isFile()) throw new TypeError(`${path} is a link or another kind of special file, which source.upload({ dir }) does not follow: copy the file in, or zip the folder and pass it as archive`);
+      const bytes = await readFile(`${dir}/${path}`);
+      let text: string;
+      try {
+        text = utf8.decode(bytes);
+      } catch {
+        throw new TypeError(`${path} is not UTF-8 text, which source.upload({ dir }) sends: zip the folder and pass it as archive`);
+      }
+      body += encoder.encode(JSON.stringify(path) + JSON.stringify(text)).byteLength + 2;
+      if (++count > MAX_FILES || body > MAX_BODY_BYTES) throw new TypeError(`${dir} holds over ${MAX_FILES} files or 67 MB as JSON, more than one source.upload_files request takes: leave out dependencies and build output, or zip the folder and pass it as archive`);
+      files[path] = text;
+    }
+  };
+  await walk("");
+  return files;
 }
 
 const LOOPBACK = new Set(["localhost", "127.0.0.1", "[::1]"]);
@@ -176,10 +249,10 @@ async function failure(response: Response): Promise<ScaffoldError> {
   } catch {
     parsed = undefined;
   }
-  const error = (parsed as { error?: { type?: unknown; message?: unknown; param?: unknown; request_id?: unknown; details?: unknown } } | undefined)?.error;
+  const error = (parsed as { error?: { type?: unknown; message?: unknown; param?: unknown; request_id?: unknown; details?: unknown; doc?: unknown } } | undefined)?.error;
   if (typeof error?.type === "string" && typeof error.message === "string") {
     const text = (value: unknown) => (typeof value === "string" ? value : undefined);
-    return new ScaffoldError(response.status, error.type as ErrorCode, error.message, text(error.param), text(error.request_id), error.details, retryAfter);
+    return new ScaffoldError(response.status, error.type as ErrorCode, error.message, text(error.param), text(error.request_id), error.details, retryAfter, text(error.doc));
   }
   return new ScaffoldError(response.status, "unexpected_response", `HTTP ${response.status}: ${text.slice(0, 200)}`, undefined, undefined, undefined, retryAfter);
 }
