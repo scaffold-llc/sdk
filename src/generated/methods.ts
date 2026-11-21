@@ -43,6 +43,8 @@ export const COMMANDS = {
     delete: { method: "DELETE", path: "/v1/projects/{project_id}", idempotent: true },
     restore: { method: "POST", path: "/v1/projects/{project_id}/restore", idempotent: true },
     erase: { method: "POST", path: "/v1/projects/{project_id}/erase", idempotent: true },
+    rename: { method: "POST", path: "/v1/projects/{project_id}/rename", idempotent: true },
+    description_set: { method: "PUT", path: "/v1/projects/{project_id}/description", idempotent: true },
     health_get: { method: "GET", path: "/v1/projects/{project_id}/health" },
     status_get: { method: "GET", path: "/v1/projects/{project_id}/status" },
     limits_get: { method: "GET", path: "/v1/projects/{project_id}/limits" },
@@ -62,6 +64,7 @@ export const COMMANDS = {
   },
   source: {
     upload: { method: "PUT", path: "/v1/projects/{project_id}/sources", zip: "archive", idempotent: true },
+    upload_files: { method: "POST", path: "/v1/projects/{project_id}/sources/files", idempotent: true },
     delete: { method: "DELETE", path: "/v1/projects/{project_id}/sources/{sha256}", idempotent: true },
     list: { method: "GET", path: "/v1/projects/{project_id}/sources" },
     file_list: { method: "GET", path: "/v1/projects/{project_id}/sources/{sha256}/files" },
@@ -78,6 +81,8 @@ export const COMMANDS = {
   },
   app_db: {
     get: { method: "GET", path: "/v1/projects/{project_id}/database" },
+    table_list: { method: "GET", path: "/v1/projects/{project_id}/database/tables" },
+    table_rows: { method: "GET", path: "/v1/projects/{project_id}/database/tables/{table}" },
     backup_list: { method: "GET", path: "/v1/projects/{project_id}/database/backups" },
     backup_restore: { method: "POST", path: "/v1/projects/{project_id}/database/backups/{backup_id}/restore", idempotent: true },
   },
@@ -141,6 +146,7 @@ export const COMMANDS = {
   },
   trash: {
     list: { method: "GET", path: "/v1/workspaces/{workspace_id}/trash" },
+    erase: { method: "POST", path: "/v1/trash/{id}/erase", idempotent: true },
   },
   database: {
     create: { method: "POST", path: "/v1/workspaces/{workspace_id}/databases", idempotent: true },
@@ -179,6 +185,7 @@ export const COMMANDS = {
   task: {
     list: { method: "GET", path: "/v1/tasks", list: true },
     create: { method: "POST", path: "/v1/tasks", idempotent: true },
+    bulk_create: { method: "POST", path: "/v1/tasks/bulk-create", idempotent: true },
     update: { method: "PATCH", path: "/v1/tasks/{task_id}", idempotent: true },
     move: { method: "POST", path: "/v1/tasks/{task_id}/move", idempotent: true },
   },
@@ -217,11 +224,14 @@ export const COMMANDS = {
     user_list: { method: "GET", path: "/v1/projects/{project_id}/auth/users", list: true },
     user_show: { method: "GET", path: "/v1/projects/{project_id}/auth/users/{user_id}" },
     user_unlock: { method: "POST", path: "/v1/projects/{project_id}/auth/users/{user_id}/unlock", idempotent: true },
+    user_update: { method: "PATCH", path: "/v1/projects/{project_id}/auth/users/{user_id}", idempotent: true },
+    user_confirm: { method: "POST", path: "/v1/projects/{project_id}/auth/users/{user_id}/confirm", idempotent: true },
     user_email_send: { method: "POST", path: "/v1/projects/{project_id}/auth/users/{user_id}/email", idempotent: true },
     user_session_list: { method: "GET", path: "/v1/projects/{project_id}/auth/users/{user_id}/sessions" },
     user_session_revoke: { method: "DELETE", path: "/v1/projects/{project_id}/auth/users/{user_id}/sessions/{session_id}", idempotent: true },
     user_sign_out_everywhere: { method: "POST", path: "/v1/projects/{project_id}/auth/users/{user_id}/sign-out", idempotent: true },
     sign_in_event_list: { method: "GET", path: "/v1/projects/{project_id}/auth/sign-ins" },
+    sign_in_event_export: { method: "GET", path: "/v1/projects/{project_id}/auth/sign-ins/export" },
     user_delete: { method: "DELETE", path: "/v1/projects/{project_id}/auth/users/{user_id}", idempotent: true },
     settings_get: { method: "GET", path: "/v1/projects/{project_id}/auth/settings" },
     settings_update: { method: "POST", path: "/v1/projects/{project_id}/auth/settings", idempotent: true },
@@ -231,6 +241,8 @@ export const COMMANDS = {
     email_suppression_add: { method: "POST", path: "/v1/projects/{project_id}/auth/email-suppressions", idempotent: true },
     email_suppression_remove: { method: "POST", path: "/v1/projects/{project_id}/auth/email-suppressions/remove", idempotent: true },
     sender_get: { method: "GET", path: "/v1/projects/{project_id}/auth/sender" },
+    email_preview_list: { method: "GET", path: "/v1/projects/{project_id}/auth/email-previews" },
+    email_test_send: { method: "POST", path: "/v1/projects/{project_id}/auth/email-tests", idempotent: true },
     verify: { method: "POST", path: "/v1/projects/{project_id}/auth/verify", appServer: true },
     password_reset: { method: "POST", path: "/v1/projects/{project_id}/auth/password-reset", appServer: true },
   },
@@ -400,6 +412,10 @@ export interface Methods {
     restore(input: operations["project.restore"]["parameters"]["path"], options?: WriteOptions): Promise<operations["project.restore"]["responses"][200]["content"]["application/json"]>;
     /** Owner only: erase a deleted project now instead of when its 24 hours run out, with its deploys, env, domains and database. `POST /v1/projects/{project_id}/erase` */
     erase(input: operations["project.erase"]["parameters"]["path"], options?: WriteOptions): Promise<operations["project.erase"]["responses"][200]["content"]["application/json"]>;
+    /** Change a project's name, which the console and its app's emails show. Its slug and address stay. `POST /v1/projects/{project_id}/rename` */
+    rename(input: operations["project.rename"]["parameters"]["path"] & NonNullable<operations["project.rename"]["requestBody"]>["content"]["application/json"], options?: WriteOptions): Promise<operations["project.rename"]["responses"][200]["content"]["application/json"]>;
+    /** Set a project's one-line description, which the console shows under its name in the project list, or clear it with null or blank text. `PUT /v1/projects/{project_id}/description` */
+    description_set(input: operations["project.description_set"]["parameters"]["path"] & NonNullable<operations["project.description_set"]["requestBody"]>["content"]["application/json"], options?: WriteOptions): Promise<operations["project.description_set"]["responses"][200]["content"]["application/json"]>;
     /** Show a project's requests, errors, p95 latency, unavailable requests and downtime per hour over the last 24 hours, all its deploys together. `GET /v1/projects/{project_id}/health` */
     health_get(input: operations["project.health_get"]["parameters"]["path"]): Promise<operations["project.health_get"]["responses"][200]["content"]["application/json"]>;
     /** Show whether each deploy a project's host keeps is awake, asleep or exited, with its wakes, sleeps, OOM kills and CPU. `GET /v1/projects/{project_id}/status` */
@@ -434,6 +450,8 @@ export interface Methods {
   source: {
     /** Upload a project's code as one zip, stored once by its hash. Only the newest 5 uploads are kept, and uploading one again makes it the newest. The app's files sit at the zip's root, not in a folder: index.html for a static site, or package.json with a start script or main file for a Node app, without node_modules. `PUT /v1/projects/{project_id}/sources` */
     upload(input: operations["source.upload"]["parameters"]["path"] & { archive: Blob | ArrayBuffer | Uint8Array }, options?: WriteOptions): Promise<operations["source.upload"]["responses"][200]["content"]["application/json"]>;
+    /** Upload a project's code as text files by path when you cannot send a zip. Scaffold zips them and stores the zip as source.upload does, under the same limits. Paths start at the app's root: index.html for a static site, or package.json with a start script or main file for a Node app, without node_modules. `POST /v1/projects/{project_id}/sources/files` */
+    upload_files(input: operations["source.upload_files"]["parameters"]["path"] & NonNullable<operations["source.upload_files"]["requestBody"]>["content"]["application/json"], options?: WriteOptions): Promise<operations["source.upload_files"]["responses"][200]["content"]["application/json"]>;
     /** Delete a project's upload and its file. source.list gives each upload's sha256. `DELETE /v1/projects/{project_id}/sources/{sha256}` */
     delete(input: operations["source.delete"]["parameters"]["path"], options?: WriteOptions): Promise<operations["source.delete"]["responses"][200]["content"]["application/json"]>;
     /** List a project's uploads of its code, newest first. An upload's sha256 is all deploy.create needs to build it. `GET /v1/projects/{project_id}/sources` */
@@ -462,6 +480,10 @@ export interface Methods {
   app_db: {
     /** Show a project's Postgres database: its state, version, stored size, and DATABASE_URL with the password masked. `GET /v1/projects/{project_id}/database` */
     get(input: operations["app_db.get"]["parameters"]["path"]): Promise<operations["app_db.get"]["responses"][200]["content"]["application/json"]>;
+    /** List the tables in a project's Postgres database with each one's estimated rows and stored size. It only reads. `GET /v1/projects/{project_id}/database/tables` */
+    table_list(input: operations["app_db.table_list"]["parameters"]["path"]): Promise<operations["app_db.table_list"]["responses"][200]["content"]["application/json"]>;
+    /** Read up to 50 rows of a table in a project's Postgres database, last first by primary key, optionally only those whose text holds a search, ignoring case. Each value comes as text cut to 500 characters. It runs in a read-only transaction of at most 5 seconds. `GET /v1/projects/{project_id}/database/tables/{table}` */
+    table_rows(input: operations["app_db.table_rows"]["parameters"]["path"] & NonNullable<operations["app_db.table_rows"]["parameters"]["query"]>): Promise<operations["app_db.table_rows"]["responses"][200]["content"]["application/json"]>;
     /** Paid plan: list a project database's backups, newest first: daily at 03:00 UTC, before each restore and before each deploy's migrations, each kept 6 days. Also its latest restore and dump. `GET /v1/projects/{project_id}/database/backups` */
     backup_list(input: operations["app_db.backup_list"]["parameters"]["path"]): Promise<operations["app_db.backup_list"]["responses"][200]["content"]["application/json"]>;
     /** Paid plan, owners only: put a backup in place of everything in a project's database, which is read-only from when the restore starts until it ends. Rows written since are lost, so the current data is backed up first as undo_backup_id; restoring that backup undoes this. A restore that fails leaves the database as it was. `POST /v1/projects/{project_id}/database/backups/{backup_id}/restore` */
@@ -560,7 +582,7 @@ export interface Methods {
     withdraw(input: operations["billing.withdraw"]["parameters"]["path"], options?: WriteOptions): Promise<operations["billing.withdraw"]["responses"][200]["content"]["application/json"]>;
   };
   change: {
-    /** List what changed in a workspace, newest first, 100 at a time. Pass the last position you saw as after to catch up oldest first. `GET /v1/workspaces/{workspace_id}/changes` */
+    /** List what changed in a workspace, newest first, 100 at a time. Pass the last position you saw as after to catch up oldest first. Narrow it with words to find in each change and a from and to time. `GET /v1/workspaces/{workspace_id}/changes` */
     list(input: operations["change.list"]["parameters"]["path"] & NonNullable<operations["change.list"]["parameters"]["query"]>): Promise<operations["change.list"]["responses"][200]["content"]["application/json"]>;
     /** List the record versions one command made, before and after. `GET /v1/commands/{command_id}/changes` */
     command_get(input: operations["change.command_get"]["parameters"]["path"]): Promise<operations["change.command_get"]["responses"][200]["content"]["application/json"]>;
@@ -568,8 +590,10 @@ export interface Methods {
     export(input: operations["change.export"]["parameters"]["path"] & NonNullable<operations["change.export"]["parameters"]["query"]>): Promise<operations["change.export"]["responses"][200]["content"]["application/json"]>;
   };
   trash: {
-    /** List what was deleted in a workspace and can still be restored. `GET /v1/workspaces/{workspace_id}/trash` */
+    /** List what was deleted in a workspace and can still be restored, with the commands that restore it and, for an owner, erase it now. `GET /v1/workspaces/{workspace_id}/trash` */
     list(input: operations["trash.list"]["parameters"]["path"] & NonNullable<operations["trash.list"]["parameters"]["query"]>): Promise<operations["trash.list"]["responses"][200]["content"]["application/json"]>;
+    /** Owner only: erase an archived page or database now instead of after its 30 days, with its content and history, and a database with its records, fields and views. Relation fields of other databases lose their links to it. A deleted project is erased with project.erase. `POST /v1/trash/{id}/erase` */
+    erase(input: operations["trash.erase"]["parameters"]["path"], options?: WriteOptions): Promise<operations["trash.erase"]["responses"][200]["content"]["application/json"]>;
   };
   database: {
     /** Create a database, which keeps a Title field; add each field asked for with field.create. `POST /v1/workspaces/{workspace_id}/databases` */
@@ -636,6 +660,8 @@ export interface Methods {
     list(input: NonNullable<operations["task.list"]["parameters"]["query"]>): List<operations["task.list"]["responses"][200]["content"]["application/json"], operations["task.list"]["responses"][200]["content"]["application/json"]["data"][number]>;
     /** Add a task. New labels stay after its undo. `POST /v1/tasks` */
     create(input: NonNullable<operations["task.create"]["requestBody"]>["content"]["application/json"], options?: WriteOptions): Promise<operations["task.create"]["responses"][200]["content"]["application/json"]>;
+    /** Add 1 to 100 tasks to one Tasks database in one command, each shaped like task.create's input without workspace_id and database_id. For a single task, use task.create. New labels stay after its undo. `POST /v1/tasks/bulk-create` */
+    bulk_create(input: NonNullable<operations["task.bulk_create"]["requestBody"]>["content"]["application/json"], options?: WriteOptions): Promise<operations["task.bulk_create"]["responses"][200]["content"]["application/json"]>;
     /** Change a task's title, assignee or due date; null clears one. `PATCH /v1/tasks/{task_id}` */
     update(input: operations["task.update"]["parameters"]["path"] & NonNullable<operations["task.update"]["requestBody"]>["content"]["application/json"], options?: WriteOptions): Promise<operations["task.update"]["responses"][200]["content"]["application/json"]>;
     /** Move a task to a column, at a position in it. `POST /v1/tasks/{task_id}/move` */
@@ -702,6 +728,10 @@ export interface Methods {
     user_show(input: operations["app_auth.user_show"]["parameters"]["path"]): Promise<operations["app_auth.user_show"]["responses"][200]["content"]["application/json"]>;
     /** Owners only: end the 15-minute lock five wrong passwords put on an app user's email. `POST /v1/projects/{project_id}/auth/users/{user_id}/unlock` */
     user_unlock(input: operations["app_auth.user_unlock"]["parameters"]["path"], options?: WriteOptions): Promise<operations["app_auth.user_unlock"]["responses"][200]["content"]["application/json"]>;
+    /** Owners only: correct an app user's name or email, like a mistyped address. A new email makes them unverified and emails it a confirmation: until they confirm, their password does not sign them in, links sent before stop working, and they are deleted 7 days after it unless they confirm. Run it again with the old values to undo it; an email changed back needs confirming again, by the user or app_auth.user_confirm. `PATCH /v1/projects/{project_id}/auth/users/{user_id}` */
+    user_update(input: operations["app_auth.user_update"]["parameters"]["path"] & NonNullable<operations["app_auth.user_update"]["requestBody"]>["content"]["application/json"], options?: WriteOptions): Promise<operations["app_auth.user_update"]["responses"][200]["content"]["application/json"]>;
+    /** Owners only: mark an app user's email confirmed without their confirmation, for an address you know is theirs. Scaffold then keeps them and the password they signed up with signs them in. The history records who did it. `POST /v1/projects/{project_id}/auth/users/{user_id}/confirm` */
+    user_confirm(input: operations["app_auth.user_confirm"]["parameters"]["path"], options?: WriteOptions): Promise<operations["app_auth.user_confirm"]["responses"][200]["content"]["application/json"]>;
     /** Email an app user a password reset, or their unconfirmed address's confirmation again. At most one of each a minute, counted like the user's own requests: 3 auth emails an hour per address, and the workspace's monthly quota while the address is unproven. `POST /v1/projects/{project_id}/auth/users/{user_id}/email` */
     user_email_send(input: operations["app_auth.user_email_send"]["parameters"]["path"] & NonNullable<operations["app_auth.user_email_send"]["requestBody"]>["content"]["application/json"], options?: WriteOptions): Promise<operations["app_auth.user_email_send"]["responses"][200]["content"]["application/json"]>;
     /** List an app user's live sessions with the device and place each signed in from. `GET /v1/projects/{project_id}/auth/users/{user_id}/sessions` */
@@ -712,6 +742,8 @@ export interface Methods {
     user_sign_out_everywhere(input: operations["app_auth.user_sign_out_everywhere"]["parameters"]["path"], options?: WriteOptions): Promise<operations["app_auth.user_sign_out_everywhere"]["responses"][200]["content"]["application/json"]>;
     /** List a project's app sign-in events of the last 90 days, newest first, 100 at a time: sign-ups, sign-ins, wrong passwords, locks, emails and sign-outs, with place and IP. `GET /v1/projects/{project_id}/auth/sign-ins` */
     sign_in_event_list(input: operations["app_auth.sign_in_event_list"]["parameters"]["path"] & NonNullable<operations["app_auth.sign_in_event_list"]["parameters"]["query"]>): Promise<operations["app_auth.sign_in_event_list"]["responses"][200]["content"]["application/json"]>;
+    /** Owners only: download every app sign-in event a project keeps, the last 90 days, as JSON, newest first, with place and IP. `GET /v1/projects/{project_id}/auth/sign-ins/export` */
+    sign_in_event_export(input: operations["app_auth.sign_in_event_export"]["parameters"]["path"]): Promise<operations["app_auth.sign_in_event_export"]["responses"][200]["content"]["application/json"]>;
     /** Owners only: delete an app user. Their email, password and sign-in history are erased and every session ends. `DELETE /v1/projects/{project_id}/auth/users/{user_id}` */
     user_delete(input: operations["app_auth.user_delete"]["parameters"]["path"], options?: WriteOptions): Promise<operations["app_auth.user_delete"]["responses"][200]["content"]["application/json"]>;
     /** Show where a project's auth emails may link to. `GET /v1/projects/{project_id}/auth/settings` */
@@ -730,6 +762,10 @@ export interface Methods {
     email_suppression_remove(input: operations["app_auth.email_suppression_remove"]["parameters"]["path"] & NonNullable<operations["app_auth.email_suppression_remove"]["requestBody"]>["content"]["application/json"], options?: WriteOptions): Promise<operations["app_auth.email_suppression_remove"]["responses"][200]["content"]["application/json"]>;
     /** Show who a project's emails come from: its name beside the address every app sends from. `GET /v1/projects/{project_id}/auth/sender` */
     sender_get(input: operations["app_auth.sender_get"]["parameters"]["path"]): Promise<operations["app_auth.sender_get"]["responses"][200]["content"]["application/json"]>;
+    /** Show the emails a project's app users get from Scaffold as they get them: the sign-in link, the confirmation a sign-up sends and the password reset, each with its subject, HTML and text, a sample code and a link that works nowhere. Also who they come from, and your verified address, where app_auth.email_test_send sends. `GET /v1/projects/{project_id}/auth/email-previews` */
+    email_preview_list(input: operations["app_auth.email_preview_list"]["parameters"]["path"]): Promise<operations["app_auth.email_preview_list"]["responses"][200]["content"]["application/json"]>;
+    /** Send yourself one of a project's auth emails as its users get it, its subject marked Test, to your own verified address and never another. Its link and code work nowhere. Each address gets at most 10 tests a day. `POST /v1/projects/{project_id}/auth/email-tests` */
+    email_test_send(input: operations["app_auth.email_test_send"]["parameters"]["path"] & NonNullable<operations["app_auth.email_test_send"]["requestBody"]>["content"]["application/json"], options?: WriteOptions): Promise<operations["app_auth.email_test_send"]["responses"][200]["content"]["application/json"]>;
     /** Sign an app user in with the link token or code of a confirmation or magic link email, confirming their address. Each proof works once. Only the confirmation email a sign-up sent keeps the password it chose; any other email confirming the address drops it. Five wrong codes in a row for an address, across its emails, lock its codes and password for 15 minutes; the link still works. `POST /v1/projects/{project_id}/auth/verify` */
     verify(input: operations["app_auth.verify"]["parameters"]["path"] & NonNullable<operations["app_auth.verify"]["requestBody"]>["content"]["application/json"], options?: AppServerOptions): Promise<operations["app_auth.verify"]["responses"][200]["content"]["application/json"]>;
     /** Set a new password with the link token or code of a recovery email. Every session of the user ends and a new one starts. Wrong codes lock as for app_auth.verify. `POST /v1/projects/{project_id}/auth/password-reset` */
@@ -758,7 +794,7 @@ export interface Methods {
   realtime: {
     /** Send JSON to a channel of a project's app, reaching each of its signed-in users subscribed to the channel now. Nothing is stored, so a later subscriber never gets it. Any signed-in user of the app can subscribe to any of its channels, so never publish one user's private data to a guessable channel; per-user private channels are not built yet. `POST /v1/projects/{project_id}/realtime/channels/{channel}/messages` */
     publish(input: operations["realtime.publish"]["parameters"]["path"] & NonNullable<operations["realtime.publish"]["requestBody"]>["content"]["application/json"]): Promise<operations["realtime.publish"]["responses"][200]["content"]["application/json"]>;
-    /** List the realtime channels of a project's app that its users subscribe to now, with each one's subscriptions and the project's cap. `GET /v1/projects/{project_id}/realtime/channels` */
+    /** List the realtime channels of a project's app that its users subscribe to now, with each one's subscriptions, its last message and when it was published, and the project's cap. Last messages are kept in memory only, while the channel has a subscriber. `GET /v1/projects/{project_id}/realtime/channels` */
     channel_list(input: operations["realtime.channel_list"]["parameters"]["path"]): Promise<operations["realtime.channel_list"]["responses"][200]["content"]["application/json"]>;
   };
   run: {
@@ -858,7 +894,7 @@ export interface Methods {
     incident_get(input: operations["status.incident_get"]["parameters"]["path"]): Promise<operations["status.incident_get"]["responses"][200]["content"]["application/json"]>;
   };
   deploy: {
-    /** Build a project's upload in isolation, a Node app or a static site, and put it live once it serves. It needs only the sha256 source.upload answered, or none for the newest upload. It answers the deploy queued, since a build takes minutes: say so, check deploy.get when the person asks rather than in a loop, and call its URL live only once deploy.get says live. The live deploy stays ready for deploy.rollback. A Node app needs the Paid plan and takes the env as it is now, plus DATABASE_URL; an optional release command runs first, after a dump of the database. Any earlier deploy of the project that is not live yet fails, so this one replaces it. package.json "scaffold": {"kind": "worker"} makes a worker: no web page, never sleeps, Paid only. `POST /v1/projects/{project_id}/deploys` */
+    /** Build a project's upload in isolation, a Node app or a static site, and put it live once it serves. It needs only the sha256 source.upload or source.upload_files answered, or none for the newest upload. It answers the deploy queued, since a build takes minutes: say so, check deploy.get when the person asks rather than in a loop, and call its URL live only once deploy.get says live. The live deploy stays ready for deploy.rollback. A Node app needs the Paid plan and takes the env as it is now, plus DATABASE_URL; an optional release command runs first, after a dump of the database. Any earlier deploy of the project that is not live yet fails, so this one replaces it. package.json "scaffold": {"kind": "worker"} makes a worker: no web page, never sleeps, Paid only. `POST /v1/projects/{project_id}/deploys` */
     create(input: operations["deploy.create"]["parameters"]["path"] & NonNullable<operations["deploy.create"]["requestBody"]>["content"]["application/json"], options?: WriteOptions): Promise<operations["deploy.create"]["responses"][200]["content"]["application/json"]>;
     /** List a project's deploys, newest first. `GET /v1/projects/{project_id}/deploys` */
     list(input: operations["deploy.list"]["parameters"]["path"]): Promise<operations["deploy.list"]["responses"][200]["content"]["application/json"]>;

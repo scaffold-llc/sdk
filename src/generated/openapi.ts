@@ -1177,6 +1177,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/projects/{project_id}/rename": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Change a project's name, which the console and its app's emails show. Its slug and address stay. */
+        post: operations["project.rename"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/projects/{project_id}/description": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** @description Set a project's one-line description, which the console shows under its name in the project list, or clear it with null or blank text. */
+        put: operations["project.description_set"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/projects/{project_id}/suspend": {
         parameters: {
             query?: never;
@@ -1275,6 +1309,23 @@ export interface paths {
         /** @description Upload a project's code as one zip, stored once by its hash. Only the newest 5 uploads are kept, and uploading one again makes it the newest. The app's files sit at the zip's root, not in a folder: index.html for a static site, or package.json with a start script or main file for a Node app, without node_modules. */
         put: operations["source.upload"];
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/projects/{project_id}/sources/files": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Upload a project's code as text files by path when you cannot send a zip. Scaffold zips them and stores the zip as source.upload does, under the same limits. Paths start at the app's root: index.html for a static site, or package.json with a start script or main file for a Node app, without node_modules. */
+        post: operations["source.upload_files"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1464,6 +1515,40 @@ export interface paths {
         };
         /** @description Show a project's DATABASE_URL with its password, which reads and writes the whole database. Console only, so no token or agent sees it. */
         get: operations["app_db.url_reveal"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/projects/{project_id}/database/tables": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description List the tables in a project's Postgres database with each one's estimated rows and stored size. It only reads. */
+        get: operations["app_db.table_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/projects/{project_id}/database/tables/{table}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Read up to 50 rows of a table in a project's Postgres database, last first by primary key, optionally only those whose text holds a search, ignoring case. Each value comes as text cut to 500 characters. It runs in a read-only transaction of at most 5 seconds. */
+        get: operations["app_db.table_rows"];
         put?: never;
         post?: never;
         delete?: never;
@@ -2472,10 +2557,27 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description List what was deleted in a workspace and can still be restored. */
+        /** @description List what was deleted in a workspace and can still be restored, with the commands that restore it and, for an owner, erase it now. */
         get: operations["trash.list"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/trash/{id}/erase": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Owner only: erase an archived page or database now instead of after its 30 days, with its content and history, and a database with its records, fields and views. Relation fields of other databases lose their links to it. A deleted project is erased with project.erase. */
+        post: operations["trash.erase"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2938,6 +3040,23 @@ export interface paths {
         put?: never;
         /** @description Add a task. New labels stay after its undo. */
         post: operations["task.create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tasks/bulk-create": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Add 1 to 100 tasks to one Tasks database in one command, each shaped like task.create's input without workspace_id and database_id. For a single task, use task.create. New labels stay after its undo. */
+        post: operations["task.bulk_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3558,7 +3677,8 @@ export interface paths {
         delete: operations["app_auth.user_delete"];
         options?: never;
         head?: never;
-        patch?: never;
+        /** @description Owners only: correct an app user's name or email, like a mistyped address. A new email makes them unverified and emails it a confirmation: until they confirm, their password does not sign them in, links sent before stop working, and they are deleted 7 days after it unless they confirm. Run it again with the old values to undo it; an email changed back needs confirming again, by the user or app_auth.user_confirm. */
+        patch: operations["app_auth.user_update"];
         trace?: never;
     };
     "/v1/projects/{project_id}/auth/users/export": {
@@ -3589,6 +3709,23 @@ export interface paths {
         put?: never;
         /** @description Owners only: end the 15-minute lock five wrong passwords put on an app user's email. */
         post: operations["app_auth.user_unlock"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/projects/{project_id}/auth/users/{user_id}/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Owners only: mark an app user's email confirmed without their confirmation, for an address you know is theirs. Scaffold then keeps them and the password they signed up with signs them in. The history records who did it. */
+        post: operations["app_auth.user_confirm"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3672,6 +3809,23 @@ export interface paths {
         };
         /** @description List a project's app sign-in events of the last 90 days, newest first, 100 at a time: sign-ups, sign-ins, wrong passwords, locks, emails and sign-outs, with place and IP. */
         get: operations["app_auth.sign_in_event_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/projects/{project_id}/auth/sign-ins/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Owners only: download every app sign-in event a project keeps, the last 90 days, as JSON, newest first, with place and IP. */
+        get: operations["app_auth.sign_in_event_export"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3778,6 +3932,40 @@ export interface paths {
         get: operations["app_auth.sender_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/projects/{project_id}/auth/email-previews": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Show the emails a project's app users get from Scaffold as they get them: the sign-in link, the confirmation a sign-up sends and the password reset, each with its subject, HTML and text, a sample code and a link that works nowhere. Also who they come from, and your verified address, where app_auth.email_test_send sends. */
+        get: operations["app_auth.email_preview_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/projects/{project_id}/auth/email-tests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Send yourself one of a project's auth emails as its users get it, its subject marked Test, to your own verified address and never another. Its link and code work nowhere. Each address gets at most 10 tests a day. */
+        post: operations["app_auth.email_test_send"];
         delete?: never;
         options?: never;
         head?: never;
@@ -4013,7 +4201,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description List the realtime channels of a project's app that its users subscribe to now, with each one's subscriptions and the project's cap. */
+        /** @description List the realtime channels of a project's app that its users subscribe to now, with each one's subscriptions, its last message and when it was published, and the project's cap. Last messages are kept in memory only, while the channel has a subscriber. */
         get: operations["realtime.channel_list"];
         put?: never;
         post?: never;
@@ -5060,7 +5248,7 @@ export interface paths {
         /** @description List a project's deploys, newest first. */
         get: operations["deploy.list"];
         put?: never;
-        /** @description Build a project's upload in isolation, a Node app or a static site, and put it live once it serves. It needs only the sha256 source.upload answered, or none for the newest upload. It answers the deploy queued, since a build takes minutes: say so, check deploy.get when the person asks rather than in a loop, and call its URL live only once deploy.get says live. The live deploy stays ready for deploy.rollback. A Node app needs the Paid plan and takes the env as it is now, plus DATABASE_URL; an optional release command runs first, after a dump of the database. Any earlier deploy of the project that is not live yet fails, so this one replaces it. package.json "scaffold": {"kind": "worker"} makes a worker: no web page, never sleeps, Paid only. */
+        /** @description Build a project's upload in isolation, a Node app or a static site, and put it live once it serves. It needs only the sha256 source.upload or source.upload_files answered, or none for the newest upload. It answers the deploy queued, since a build takes minutes: say so, check deploy.get when the person asks rather than in a loop, and call its URL live only once deploy.get says live. The live deploy stays ready for deploy.rollback. A Node app needs the Paid plan and takes the env as it is now, plus DATABASE_URL; an optional release command runs first, after a dump of the database. Any earlier deploy of the project that is not live yet fails, so this one replaces it. package.json "scaffold": {"kind": "worker"} makes a worker: no web page, never sleeps, Paid only. */
         post: operations["deploy.create"];
         delete?: never;
         options?: never;
@@ -5904,6 +6092,38 @@ export interface components {
             undo_backup_id: components["schemas"]["SnapshotId"];
         };
         AppDbRestoreStatus: "restored" | "restoring" | "failed";
+        AppDbTable: {
+            /**
+             * Format: int64
+             * @description Postgres's count of live rows, which trails the latest writes by a moment.
+             */
+            estimated_rows: number;
+            name: string;
+            schema: string;
+            /**
+             * Format: int64
+             * @description What it stores, its indexes included.
+             */
+            size_bytes: number;
+        };
+        AppDbTableRows: {
+            columns: string[];
+            /** @description Whether more rows match than those answered. */
+            has_more: boolean;
+            project_id: components["schemas"]["ProjectId"];
+            /**
+             * @description Up to 50, last first by primary key when the table has one. Each value as Postgres
+             *     writes it as text, cut to 500 characters, or null.
+             */
+            rows: (string | null)[][];
+            schema: string;
+            table: string;
+        };
+        AppDbTables: {
+            project_id: components["schemas"]["ProjectId"];
+            /** @description Those of `public` first, then by schema and name. */
+            tables: components["schemas"]["AppDbTable"][];
+        };
         AppEmailFeedback: {
             /** @description Whether this complaint flagged the project. */
             complaints_spiked: boolean;
@@ -5927,6 +6147,30 @@ export interface components {
             /** Format: uuid */
             message_id: string;
             queued_at: string;
+        };
+        /** @description One email as an app user gets it. */
+        AppEmailPreview: {
+            html: string;
+            purpose: components["schemas"]["AppEmailPurpose"];
+            subject: string;
+            text: string;
+        };
+        AppEmailPreviews: {
+            /**
+             * @description The sign-in link, the confirmation a sign-up sends and the password reset, rendered by
+             *     the templates every email uses, with a sample code and a link no proof matches.
+             */
+            emails: components["schemas"]["AppEmailPreview"][];
+            /** @description The address every app's emails come from. */
+            from_address: string;
+            /** @description The name inboxes show beside `from_address`: the project's. */
+            from_name: string;
+            project_id: components["schemas"]["ProjectId"];
+            /**
+             * @description Where `app_auth.email_test_send` sends: the asking person's own address, once they
+             *     verified it, and None before.
+             */
+            test_to?: string | null;
         };
         /** @description The body half of `app_auth.verify`: the link's `token`, or the `email` with its `code`. */
         AppEmailProof: {
@@ -5975,6 +6219,10 @@ export interface components {
             email: string;
             /** @description The project's auth emails go to the address again. */
             removed_at: string;
+        };
+        /** @description The body half of `app_auth.email_test_send`. */
+        AppEmailTestBody: {
+            purpose: components["schemas"]["AppEmailPurpose"];
         };
         /**
          * @description A project's counted emails this calendar month (UTC), and its workspace's against the
@@ -6076,6 +6324,13 @@ export interface components {
             method?: components["schemas"]["AppSignInMethod"] | null;
             user_id: components["schemas"]["AppUserId"];
         };
+        /** @description Every sign-in event a project keeps, for an owner to keep or search elsewhere. */
+        AppSignInEventExport: {
+            /** @description The last 90 days, newest first. */
+            events: components["schemas"]["AppSignInEvent"][];
+            exported_at: string;
+            project_id: components["schemas"]["ProjectId"];
+        };
         /**
          * @description Which events a list keeps.
          * @enum {string}
@@ -6104,6 +6359,17 @@ export interface components {
             id: components["schemas"]["AppUserId"];
             name?: string | null;
             project_id: components["schemas"]["ProjectId"];
+        };
+        /** @description The body half of `app_auth.user_update`. A field left out stays as it is. */
+        AppUserChanges: {
+            /** @description A new address is unconfirmed until the confirmation emailed to it proves it. */
+            email?: string | null;
+            /** @description Up to 100 characters. An empty one clears it. */
+            name?: string | null;
+        };
+        AppUserConfirmed: {
+            confirmed_at: string;
+            confirmed_user_id: components["schemas"]["AppUserId"];
         };
         AppUserDetails: {
             created_at: string;
@@ -6225,6 +6491,8 @@ export interface components {
         AppUserSummary: {
             created_at: string;
             email: string;
+            /** @description While the email is unconfirmed, when Scaffold deletes the user unless they confirm it. */
+            expires_at?: string | null;
             id: components["schemas"]["AppUserId"];
             last_sign_in_at?: string | null;
             /** Format: int64 */
@@ -6235,6 +6503,15 @@ export interface components {
         AppUserUnlocked: {
             unlocked_at: string;
             unlocked_user_id: components["schemas"]["AppUserId"];
+        };
+        AppUserUpdated: {
+            /**
+             * @description Whether the email changed, so the user is unverified and a confirmation was emailed to
+             *     the new address.
+             */
+            email_changed: boolean;
+            updated_at: string;
+            updated_user_id: components["schemas"]["AppUserId"];
         };
         Appeal: {
             appeal_id: components["schemas"]["AppealId"];
@@ -7238,6 +7515,14 @@ export interface components {
         };
         /** @description How far a deploy got. */
         DeployStatus: ("building" | "failed") | "queued" | "starting" | "live" | "superseded" | "rolled_back";
+        /** @description The body half of `project.description_set`'s input. */
+        DescriptionBody: {
+            /**
+             * @description One line of plain text, at most 120 characters. Left out, null or blank, it is cleared.
+             * @default null
+             */
+            description?: string | null;
+        };
         /** @description A detail Stripe waits for the account's owner to give. */
         DetailDue: {
             due: components["schemas"]["Due"];
@@ -7634,6 +7919,10 @@ export interface components {
             relation_database_id: components["schemas"]["DatabaseId"];
             /** @description Show its links from the other database's records too. */
             two_way: boolean;
+        };
+        /** @description The body half of `source.upload_files`' input. */
+        FilesUpload: {
+            files: components["schemas"]["SourceTextFiles"];
         };
         /** @description The body half of `schedule.fire`'s input. */
         FireAt: {
@@ -8294,6 +8583,16 @@ export interface components {
             prompt: string;
             repeats: components["schemas"]["Repeats"];
         };
+        /** @description One task of `task.bulk_create`, as `task.create` takes it. */
+        NewTask: {
+            assignee?: components["schemas"]["Assignee"] | null;
+            /** @description `YYYY-MM-DD`. */
+            due?: string | null;
+            /** @default [] */
+            labels?: string[];
+            status?: components["schemas"]["TaskStatus"] | null;
+            title: string;
+        };
         /** @description The body half of `test_run.start`'s input. */
         NewTestRun: {
             /** @description Who runs them, like `Frontend agent`. */
@@ -8953,6 +9252,11 @@ export interface components {
             claim_link_expires_at?: string | null;
             created_at: string;
             deleted_at?: string | null;
+            /**
+             * @description One line about it, which the console shows under its name. Null when it has none.
+             * @default null
+             */
+            description?: string | null;
             erase_after?: string | null;
             /** @description Where its app lives, like `pinecrest-web.scaffold.host`. Chosen once and never reused. */
             hostname: string;
@@ -9112,6 +9416,11 @@ export interface components {
             claim_link_expires_at?: string | null;
             created_at: string;
             deleted_at?: string | null;
+            /**
+             * @description One line about it, which the console shows under its name. Null when it has none.
+             * @default null
+             */
+            description?: string | null;
             erase_after?: string | null;
             /** @description Where its app lives, like `pinecrest-web.scaffold.host`. Chosen once and never reused. */
             hostname: string;
@@ -9175,6 +9484,20 @@ export interface components {
             ops: components["schemas"]["Op"][];
         };
         /**
+         * @description What a write would do to one record: the kind of its first version and each field before and
+         *     after, as the versions it stored before an approval refused it.
+         */
+        ProposedRecordChange: {
+            changes: components["schemas"]["FieldChange"][];
+            database_id: components["schemas"]["DatabaseId"];
+            /**
+             * @description `record.created`, `record.updated`, `record.moved`, `record.archived` or
+             *     `record.restored`.
+             */
+            kind: string;
+            record_id: components["schemas"]["RecordId"];
+        };
+        /**
          * @description Props a block type does not have are refused. Omitted ones keep their value, or take
          *     BlockNote's default on a new block.
          */
@@ -9236,6 +9559,11 @@ export interface components {
         /** @description A channel with how many subscriptions it has open now. */
         RealtimeChannel: {
             channel: string;
+            /**
+             * @description realtime.channel_list only: the last message published to it while someone subscribed,
+             *     kept in memory until its last subscriber leaves. None before the first.
+             */
+            last_message?: components["schemas"]["RealtimeLastMessage"] | null;
             /** Format: uint */
             subscribers: number;
         };
@@ -9266,6 +9594,11 @@ export interface components {
             count: number;
             /** @constant */
             type: "skipped";
+        };
+        /** @description A channel's last message, as its subscribers got it. */
+        RealtimeLastMessage: {
+            data: unknown;
+            published_at: string;
         };
         /** @description The body half of `realtime.publish`'s input. */
         RealtimeMessage: {
@@ -9758,9 +10091,21 @@ export interface components {
             source_sha256: string;
         };
         RunApprovalSubject: {
+            /**
+             * @description Each field of a record the change would set, before and after.
+             * @default []
+             */
+            changes?: components["schemas"]["FieldChange"][];
+            /**
+             * @description A record's database, whose fields name its changes.
+             * @default null
+             */
+            database_id?: components["schemas"]["DatabaseId"] | null;
             id: components["schemas"]["AnyId"];
             /** @description A record's key now, like LAR-160. */
             key?: string | null;
+            /** @description What the change would do to a record, like `record.updated`. None for anything else, and on an approval asked before these were kept. @default null */
+            kind?: string | null;
             /** @description Its title or name. None for something the change would create. */
             name?: string | null;
         };
@@ -10254,6 +10599,10 @@ export interface components {
             project_id: components["schemas"]["ProjectId"];
             sha256: string;
         };
+        /** @description Each file's path from the app's root, like src/index.js, to its UTF-8 text. Zipped under source.upload's limits: at most 50 MB zipped, 10,000 files and 500 MB unpacked, with relative paths and no .. */
+        SourceTextFiles: {
+            [key: string]: string;
+        };
         /** @description An archive of a project's code as uploaded, which deploys name by its hash. */
         SourceUpload: {
             project_id: components["schemas"]["ProjectId"];
@@ -10671,6 +11020,18 @@ export interface components {
              * @description As the record's: send it as `expected_version`.
              */
             version: number;
+        };
+        /** @description The tasks one command made. */
+        TaskBatch: {
+            /** @description Pass it to `record.undo` to take every one of them back. */
+            command_id: components["schemas"]["CommandId"];
+            tasks: components["schemas"]["Task"][];
+        };
+        TaskBulkCreateInput: {
+            database_id?: components["schemas"]["DatabaseId"] | null;
+            /** @description 1 to 100 tasks, made in this order. One refused makes none of them. */
+            tasks: components["schemas"]["NewTask"][];
+            workspace_id: components["schemas"]["WorkspaceId"];
         };
         /**
          * @description The body half of `task.update`'s input. Fields left out stay; null clears the assignee or
@@ -11134,6 +11495,12 @@ export interface components {
             previous_owner_id: components["schemas"]["PersonId"];
             workspace_id: components["schemas"]["WorkspaceId"];
         };
+        /** @description A page or database an owner erased from the trash before its 30 days ran out. */
+        TrashErased: {
+            erased_at: string;
+            id: components["schemas"]["AnyId"];
+            kind: components["schemas"]["TrashKind"];
+        };
         TrashItem: {
             /** @description The agent whose run deleted it, when it came through one. */
             agent?: components["schemas"]["ChangeAgent"] | null;
@@ -11144,6 +11511,8 @@ export interface components {
             deleted_by: components["schemas"]["PersonId"];
             /** @description None for an erased person. */
             deleted_by_name?: string | null;
+            /** @description The command an owner erases it with now, like `trash.erase`. None for a record, kept with its history. @default null */
+            erase?: string | null;
             /** @description When it is erased unless restored first. None for a record, kept with its history. */
             erase_after?: string | null;
             id: components["schemas"]["AnyId"];
@@ -11327,6 +11696,8 @@ export interface components {
             interval: components["schemas"]["Interval"];
         };
         WaitingInput: {
+            /** @description What the change would write to each record, field by field. */
+            changes?: components["schemas"]["ProposedRecordChange"][];
             /** @description The MCP action it waits to run, like record_bulk_archive. */
             command: string;
             /** @description What a deploy or rollback would put live. */
@@ -15579,6 +15950,124 @@ export interface operations {
             };
         };
     };
+    "project.rename": {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Retrying with the same key within 24 hours returns the first result; after that the key is forgotten and the request runs again. The same key with another request answers 422 idempotency_key_reused. A command whose secret is shown only once answers 409 secret_shown instead, naming any token it created, and never shows the secret again. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                project_id: components["schemas"]["ProjectRef"];
+            };
+            cookie?: never;
+        };
+        /** @description The body half of the inputs that create or rename by name alone. */
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Rename"];
+            };
+        };
+        responses: {
+            /** @description What the command answers. */
+            200: {
+                headers: {
+                    /** @description The `command_id` of the write that answered, as `change.list` shows its changes. Pass it to `record.undo` or `credit.settle`. A retry under the same Idempotency-Key answers with the first run's. */
+                    "Scaffold-Command-Id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Project"];
+                };
+            };
+            /** @description No valid credential. When the console session of the cookie ended, `details` say why and when. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnauthorizedBody"];
+                };
+            };
+            /** @description Over a rate limit. Retry after the seconds in `Retry-After`. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Every failed request answers with this body. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "project.description_set": {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Retrying with the same key within 24 hours returns the first result; after that the key is forgotten and the request runs again. The same key with another request answers 422 idempotency_key_reused. A command whose secret is shown only once answers 409 secret_shown instead, naming any token it created, and never shows the secret again. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                project_id: components["schemas"]["ProjectRef"];
+            };
+            cookie?: never;
+        };
+        /** @description The body half of `project.description_set`'s input. */
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DescriptionBody"];
+            };
+        };
+        responses: {
+            /** @description What the command answers. */
+            200: {
+                headers: {
+                    /** @description The `command_id` of the write that answered, as `change.list` shows its changes. Pass it to `record.undo` or `credit.settle`. A retry under the same Idempotency-Key answers with the first run's. */
+                    "Scaffold-Command-Id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Project"];
+                };
+            };
+            /** @description No valid credential. When the console session of the cookie ended, `details` say why and when. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnauthorizedBody"];
+                };
+            };
+            /** @description Over a rate limit. Retry after the seconds in `Retry-After`. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Every failed request answers with this body. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     "project.suspend": {
         parameters: {
             query?: never;
@@ -15985,6 +16474,65 @@ export interface operations {
         requestBody: {
             content: {
                 "application/zip": string;
+            };
+        };
+        responses: {
+            /** @description What the command answers. */
+            200: {
+                headers: {
+                    /** @description The `command_id` of the write that answered, as `change.list` shows its changes. Pass it to `record.undo` or `credit.settle`. A retry under the same Idempotency-Key answers with the first run's. */
+                    "Scaffold-Command-Id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SourceUpload"];
+                };
+            };
+            /** @description No valid credential. When the console session of the cookie ended, `details` say why and when. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnauthorizedBody"];
+                };
+            };
+            /** @description Over a rate limit. Retry after the seconds in `Retry-After`. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Every failed request answers with this body. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "source.upload_files": {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Retrying with the same key within 24 hours returns the first result; after that the key is forgotten and the request runs again. The same key with another request answers 422 idempotency_key_reused. A command whose secret is shown only once answers 409 secret_shown instead, naming any token it created, and never shows the secret again. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                project_id: components["schemas"]["ProjectRef"];
+            };
+            cookie?: never;
+        };
+        /** @description The body half of `source.upload_files`' input. */
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FilesUpload"];
             };
         };
         responses: {
@@ -16799,6 +17347,110 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AppDatabaseUrl"];
+                };
+            };
+            /** @description No valid credential. When the console session of the cookie ended, `details` say why and when. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnauthorizedBody"];
+                };
+            };
+            /** @description Over a rate limit. Retry after the seconds in `Retry-After`. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Every failed request answers with this body. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "app_db.table_list": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: components["schemas"]["ProjectRef"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description What the command answers. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppDbTables"];
+                };
+            };
+            /** @description No valid credential. When the console session of the cookie ended, `details` say why and when. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnauthorizedBody"];
+                };
+            };
+            /** @description Over a rate limit. Retry after the seconds in `Retry-After`. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Every failed request answers with this body. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "app_db.table_rows": {
+        parameters: {
+            query?: {
+                /** @description The table's schema, as app_db.table_list names it. Left out, `public`. */
+                schema?: string;
+                /** @description Only rows whose text holds this, ignoring case. At most 200 characters. */
+                search?: string;
+            };
+            header?: never;
+            path: {
+                project_id: components["schemas"]["ProjectRef"];
+                table: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description What the command answers. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppDbTableRows"];
                 };
             };
             /** @description No valid credential. When the console session of the cookie ended, `details` say why and when. */
@@ -20209,8 +20861,17 @@ export interface operations {
                 before?: number;
                 /** @description Only the changes made through this connected app. */
                 client_id?: components["schemas"]["OAuthClientId"];
+                /** @description Only the changes made at or after this time. */
+                from?: string;
+                /**
+                 * @description Only the changes that read with every word of this, in any case: who made them, what
+                 *     they did, to what and where. Up to 200 characters.
+                 */
+                query?: string;
                 /** @description Only the changes this agent run made. */
                 run_id?: components["schemas"]["RunId"];
+                /** @description Only the changes made before this time. */
+                to?: string;
                 via?: components["schemas"]["ChangeViaKind"];
             };
             header?: {
@@ -20321,6 +20982,8 @@ export interface operations {
                 client_id?: components["schemas"]["OAuthClientId"];
                 /** @description The last 1 to 90 days. 30 when omitted. */
                 days?: number;
+                /** @description Only the changes that read with every word of this, as change.list takes it. */
+                query?: string;
                 via?: components["schemas"]["ChangeViaKind"];
             };
             header?: never;
@@ -20390,6 +21053,61 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TrashItem"][];
+                };
+            };
+            /** @description No valid credential. When the console session of the cookie ended, `details` say why and when. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnauthorizedBody"];
+                };
+            };
+            /** @description Over a rate limit. Retry after the seconds in `Retry-After`. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Every failed request answers with this body. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "trash.erase": {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Retrying with the same key within 24 hours returns the first result; after that the key is forgotten and the request runs again. The same key with another request answers 422 idempotency_key_reused. A command whose secret is shown only once answers 409 secret_shown instead, naming any token it created, and never shows the secret again. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                /** @description An archived page's or database's id, as trash.list lists it. */
+                id: components["schemas"]["AnyId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description What the command answers. */
+            200: {
+                headers: {
+                    /** @description The `command_id` of the write that answered, as `change.list` shows its changes. Pass it to `record.undo` or `credit.settle`. A retry under the same Idempotency-Key answers with the first run's. */
+                    "Scaffold-Command-Id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrashErased"];
                 };
             };
             /** @description No valid credential. When the console session of the cookie ended, `details` say why and when. */
@@ -22153,6 +22871,62 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Task"];
+                };
+            };
+            /** @description No valid credential. When the console session of the cookie ended, `details` say why and when. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnauthorizedBody"];
+                };
+            };
+            /** @description Over a rate limit. Retry after the seconds in `Retry-After`. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Every failed request answers with this body. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "task.bulk_create": {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Retrying with the same key within 24 hours returns the first result; after that the key is forgotten and the request runs again. The same key with another request answers 422 idempotency_key_reused. A command whose secret is shown only once answers 409 secret_shown instead, naming any token it created, and never shows the secret again. */
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TaskBulkCreateInput"];
+            };
+        };
+        responses: {
+            /** @description What the command answers. */
+            200: {
+                headers: {
+                    /** @description The `command_id` of the write that answered, as `change.list` shows its changes. Pass it to `record.undo` or `credit.settle`. A retry under the same Idempotency-Key answers with the first run's. */
+                    "Scaffold-Command-Id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TaskBatch"];
                 };
             };
             /** @description No valid credential. When the console session of the cookie ended, `details` say why and when. */
@@ -24408,6 +25182,66 @@ export interface operations {
             };
         };
     };
+    "app_auth.user_update": {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Retrying with the same key within 24 hours returns the first result; after that the key is forgotten and the request runs again. The same key with another request answers 422 idempotency_key_reused. A command whose secret is shown only once answers 409 secret_shown instead, naming any token it created, and never shows the secret again. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                project_id: components["schemas"]["ProjectRef"];
+                user_id: components["schemas"]["AppUserId"];
+            };
+            cookie?: never;
+        };
+        /** @description The body half of `app_auth.user_update`. A field left out stays as it is. */
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AppUserChanges"];
+            };
+        };
+        responses: {
+            /** @description What the command answers. */
+            200: {
+                headers: {
+                    /** @description The `command_id` of the write that answered, as `change.list` shows its changes. Pass it to `record.undo` or `credit.settle`. A retry under the same Idempotency-Key answers with the first run's. */
+                    "Scaffold-Command-Id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppUserUpdated"];
+                };
+            };
+            /** @description No valid credential. When the console session of the cookie ended, `details` say why and when. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnauthorizedBody"];
+                };
+            };
+            /** @description Over a rate limit. Retry after the seconds in `Retry-After`. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Every failed request answers with this body. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     "app_auth.user_export": {
         parameters: {
             query?: never;
@@ -24481,6 +25315,61 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AppUserUnlocked"];
+                };
+            };
+            /** @description No valid credential. When the console session of the cookie ended, `details` say why and when. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnauthorizedBody"];
+                };
+            };
+            /** @description Over a rate limit. Retry after the seconds in `Retry-After`. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Every failed request answers with this body. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "app_auth.user_confirm": {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Retrying with the same key within 24 hours returns the first result; after that the key is forgotten and the request runs again. The same key with another request answers 422 idempotency_key_reused. A command whose secret is shown only once answers 409 secret_shown instead, naming any token it created, and never shows the secret again. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                project_id: components["schemas"]["ProjectRef"];
+                user_id: components["schemas"]["AppUserId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description What the command answers. */
+            200: {
+                headers: {
+                    /** @description The `command_id` of the write that answered, as `change.list` shows its changes. Pass it to `record.undo` or `credit.settle`. A retry under the same Idempotency-Key answers with the first run's. */
+                    "Scaffold-Command-Id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppUserConfirmed"];
                 };
             };
             /** @description No valid credential. When the console session of the cookie ended, `details` say why and when. */
@@ -24758,6 +25647,55 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AppSignInEvent"][];
+                };
+            };
+            /** @description No valid credential. When the console session of the cookie ended, `details` say why and when. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnauthorizedBody"];
+                };
+            };
+            /** @description Over a rate limit. Retry after the seconds in `Retry-After`. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Every failed request answers with this body. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "app_auth.sign_in_event_export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: components["schemas"]["ProjectRef"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description What the command answers. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppSignInEventExport"];
                 };
             };
             /** @description No valid credential. When the console session of the cookie ended, `details` say why and when. */
@@ -25192,6 +26130,114 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AppEmailSender"];
+                };
+            };
+            /** @description No valid credential. When the console session of the cookie ended, `details` say why and when. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnauthorizedBody"];
+                };
+            };
+            /** @description Over a rate limit. Retry after the seconds in `Retry-After`. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Every failed request answers with this body. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "app_auth.email_preview_list": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: components["schemas"]["ProjectRef"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description What the command answers. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppEmailPreviews"];
+                };
+            };
+            /** @description No valid credential. When the console session of the cookie ended, `details` say why and when. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnauthorizedBody"];
+                };
+            };
+            /** @description Over a rate limit. Retry after the seconds in `Retry-After`. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Every failed request answers with this body. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "app_auth.email_test_send": {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Retrying with the same key within 24 hours returns the first result; after that the key is forgotten and the request runs again. The same key with another request answers 422 idempotency_key_reused. A command whose secret is shown only once answers 409 secret_shown instead, naming any token it created, and never shows the secret again. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                project_id: components["schemas"]["ProjectRef"];
+            };
+            cookie?: never;
+        };
+        /** @description The body half of `app_auth.email_test_send`. */
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AppEmailTestBody"];
+            };
+        };
+        responses: {
+            /** @description What the command answers. */
+            200: {
+                headers: {
+                    /** @description The `command_id` of the write that answered, as `change.list` shows its changes. Pass it to `record.undo` or `credit.settle`. A retry under the same Idempotency-Key answers with the first run's. */
+                    "Scaffold-Command-Id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppEmailQueued"];
                 };
             };
             /** @description No valid credential. When the console session of the cookie ended, `details` say why and when. */
