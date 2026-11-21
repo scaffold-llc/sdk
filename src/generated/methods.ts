@@ -86,6 +86,7 @@ export const COMMANDS = {
     list: { method: "GET", path: "/v1/projects/{project_id}/cron-jobs" },
     update: { method: "PATCH", path: "/v1/cron-jobs/{cron_job_id}", idempotent: true },
     delete: { method: "DELETE", path: "/v1/cron-jobs/{cron_job_id}", idempotent: true },
+    run_now: { method: "POST", path: "/v1/cron-jobs/{cron_job_id}/run", idempotent: true },
   },
   test_run: {
     start: { method: "POST", path: "/v1/projects/{project_id}/test-runs", idempotent: true },
@@ -124,6 +125,7 @@ export const COMMANDS = {
   },
   billing: {
     get: { method: "GET", path: "/v1/workspaces/{workspace_id}/billing" },
+    payment_list: { method: "GET", path: "/v1/workspaces/{workspace_id}/billing/payments" },
     prices_get: { method: "GET", path: "/v1/billing/prices" },
     subscribe_start: { method: "POST", path: "/v1/workspaces/{workspace_id}/billing/subscribe", idempotent: true },
     subscribe_cancel: { method: "POST", path: "/v1/workspaces/{workspace_id}/billing/subscribe/cancel", idempotent: true },
@@ -325,6 +327,9 @@ export const COMMANDS = {
     endpoint_delete: { method: "DELETE", path: "/v1/webhooks/{endpoint_id}", idempotent: true },
     delivery_list: { method: "GET", path: "/v1/projects/{project_id}/webhook-deliveries", list: true },
     delivery_resend: { method: "POST", path: "/v1/webhook-deliveries/{delivery_id}/resend", idempotent: true },
+    endpoint_resend_failed: { method: "POST", path: "/v1/webhooks/{endpoint_id}/resend-failed", idempotent: true },
+    endpoint_test: { method: "POST", path: "/v1/webhooks/{endpoint_id}/test", idempotent: true },
+    endpoint_secret_rotate: { method: "POST", path: "/v1/webhooks/{endpoint_id}/secret", idempotent: true },
   },
 } as const satisfies Record<string, Record<string, Route>>;
 
@@ -471,6 +476,8 @@ export interface Methods {
     update(input: operations["cron.update"]["parameters"]["path"] & NonNullable<operations["cron.update"]["requestBody"]>["content"]["application/json"], options?: WriteOptions): Promise<operations["cron.update"]["responses"][200]["content"]["application/json"]>;
     /** Delete a cron job and its fires. It answers the job as it was. `DELETE /v1/cron-jobs/{cron_job_id}` */
     delete(input: operations["cron.delete"]["parameters"]["path"], options?: WriteOptions): Promise<operations["cron.delete"]["responses"][200]["content"]["application/json"]>;
+    /** Paid plan: send one fire of a cron job now, waking the app as its schedule does, and wait for the app's answer. Its next time stays. `POST /v1/cron-jobs/{cron_job_id}/run` */
+    run_now(input: operations["cron.run_now"]["parameters"]["path"], options?: WriteOptions): Promise<operations["cron.run_now"]["responses"][200]["content"]["application/json"]>;
   };
   test_run: {
     /** Start showing a test run of the project's code in the console, live: the command, who runs it and, when the runner knows, each test file and its test count. Report results with test_run.report as tests finish. `POST /v1/projects/{project_id}/test-runs` */
@@ -491,8 +498,8 @@ export interface Methods {
   storage: {
     /** List the files a project's app stores, by name, or only those whose name starts with prefix, like avatars/. `GET /v1/projects/{project_id}/storage` */
     list(input: operations["storage.list"]["parameters"]["path"] & NonNullable<operations["storage.list"]["parameters"]["query"]>): List<operations["storage.list"]["responses"][200]["content"]["application/json"], operations["storage.list"]["responses"][200]["content"]["application/json"]["data"][number]>;
-    /** Show what the files of all a workspace's apps take together, and the cap its plan sets on them. `GET /v1/workspaces/{workspace_id}/storage` */
-    usage_get(input: operations["storage.usage_get"]["parameters"]["path"]): Promise<operations["storage.usage_get"]["responses"][200]["content"]["application/json"]>;
+    /** Show what the files of all a workspace's apps take together, and the cap its plan sets on them. Name a project to count its own files too. `GET /v1/workspaces/{workspace_id}/storage` */
+    usage_get(input: operations["storage.usage_get"]["parameters"]["path"] & NonNullable<operations["storage.usage_get"]["parameters"]["query"]>): Promise<operations["storage.usage_get"]["responses"][200]["content"]["application/json"]>;
     /** Sign a URL that uploads one file of up to 50 MB to a project, for 15 minutes or expires_in_seconds: PUT the bytes to it with their Content-Type, from the app's server or a user's browser. A name a file holds already is refused. `POST /v1/projects/{project_id}/storage/upload-url` */
     upload_sign(input: operations["storage.upload_sign"]["parameters"]["path"] & NonNullable<operations["storage.upload_sign"]["requestBody"]>["content"]["application/json"], options?: WriteOptions): Promise<operations["storage.upload_sign"]["responses"][200]["content"]["application/json"]>;
     /** Sign a URL that downloads one of a project's files, for 15 minutes or expires_in_seconds, up to a week: link to it or put it in an img tag. `GET /v1/projects/{project_id}/storage/download-url` */
@@ -517,8 +524,8 @@ export interface Methods {
   credit: {
     /** Show a workspace's credits: balance, held, available and the monthly cap. `GET /v1/workspaces/{workspace_id}/credits` */
     balance_get(input: operations["credit.balance_get"]["parameters"]["path"]): Promise<operations["credit.balance_get"]["responses"][200]["content"]["application/json"]>;
-    /** List a workspace's latest 200 credit entries, newest first. `GET /v1/workspaces/{workspace_id}/credits/ledger` */
-    ledger_list(input: operations["credit.ledger_list"]["parameters"]["path"]): Promise<operations["credit.ledger_list"]["responses"][200]["content"]["application/json"]>;
+    /** List a workspace's credit entries, newest first, 200 at a time, each agent run's entries naming the run. Pass the last entry's id as `before` for the next page. `GET /v1/workspaces/{workspace_id}/credits/ledger` */
+    ledger_list(input: operations["credit.ledger_list"]["parameters"]["path"] & NonNullable<operations["credit.ledger_list"]["parameters"]["query"]>): Promise<operations["credit.ledger_list"]["responses"][200]["content"]["application/json"]>;
     /** Set or remove a workspace's monthly spending cap. Owners only. Raising or removing the cap lets runs spend past the limit the owner chose, so change it only when the person asks. `POST /v1/workspaces/{workspace_id}/credits/cap` */
     cap_set(input: operations["credit.cap_set"]["parameters"]["path"] & NonNullable<operations["credit.cap_set"]["requestBody"]>["content"]["application/json"], options?: WriteOptions): Promise<operations["credit.cap_set"]["responses"][200]["content"]["application/json"]>;
     /** List the credit packs a top-up can buy, with their prices. `GET /v1/credits/packs` */
@@ -535,6 +542,8 @@ export interface Methods {
   billing: {
     /** Show a workspace's plan, Free or Paid: price, card, renewal or end, a failed renewal's fix-by date, withdrawal deadlines and any unpaid payment page. `GET /v1/workspaces/{workspace_id}/billing` */
     get(input: operations["billing.get"]["parameters"]["path"]): Promise<operations["billing.get"]["responses"][200]["content"]["application/json"]>;
+    /** List what a workspace paid Scaffold, newest first: plan payments, top-ups and their refunds, each with its date, amount and what it paid for. `GET /v1/workspaces/{workspace_id}/billing/payments` */
+    payment_list(input: operations["billing.payment_list"]["parameters"]["path"]): Promise<operations["billing.payment_list"]["responses"][200]["content"]["application/json"]>;
     /** Show yearly and monthly Paid plan prices before tax, the credits each grants a month (null when it grants none), and the 14-day withdrawal charge per credit. `GET /v1/billing/prices` */
     prices_get(input?: Record<string, never>): Promise<operations["billing.prices_get"]["responses"][200]["content"]["application/json"]>;
     /** Open a Stripe payment page for the paid plan, yearly or monthly, which grants nothing before Stripe confirms. Owners only, on the free plan. `POST /v1/workspaces/{workspace_id}/billing/subscribe` */
@@ -885,5 +894,11 @@ export interface Methods {
     delivery_list(input: operations["webhook.delivery_list"]["parameters"]["path"] & NonNullable<operations["webhook.delivery_list"]["parameters"]["query"]>): List<operations["webhook.delivery_list"]["responses"][200]["content"]["application/json"], operations["webhook.delivery_list"]["responses"][200]["content"]["application/json"]["data"][number]>;
     /** Try a webhook delivery that has not succeeded again now, with the same event id and body. `POST /v1/webhook-deliveries/{delivery_id}/resend` */
     delivery_resend(input: operations["webhook.delivery_resend"]["parameters"]["path"], options?: WriteOptions): Promise<operations["webhook.delivery_resend"]["responses"][200]["content"]["application/json"]>;
+    /** Try every delivery to a webhook endpoint that failed for good again now, with the same event ids and bodies. Those tried 26 times are left. `POST /v1/webhooks/{endpoint_id}/resend-failed` */
+    endpoint_resend_failed(input: operations["webhook.endpoint_resend_failed"]["parameters"]["path"], options?: WriteOptions): Promise<operations["webhook.endpoint_resend_failed"]["responses"][200]["content"]["application/json"]>;
+    /** Post a signed ping event to a webhook endpoint now, also one that is off, and log it as a delivery with what the endpoint answered. It is not retried. `POST /v1/webhooks/{endpoint_id}/test` */
+    endpoint_test(input: operations["webhook.endpoint_test"]["parameters"]["path"], options?: WriteOptions): Promise<operations["webhook.endpoint_test"]["responses"][200]["content"]["application/json"]>;
+    /** Replace a webhook endpoint's signing secret, shown once. Every POST from now on is signed with the new one, retries of earlier events too. `POST /v1/webhooks/{endpoint_id}/secret` */
+    endpoint_secret_rotate(input: operations["webhook.endpoint_secret_rotate"]["parameters"]["path"], options?: WriteOptions): Promise<operations["webhook.endpoint_secret_rotate"]["responses"][200]["content"]["application/json"]>;
   };
 }

@@ -68,6 +68,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/auth/activity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description List your own sign-in activity of the last 30 days, newest first: sign-ins and sign-outs with where they came from, password resets, email changes, second factors, recovery codes and linked providers. Console only. */
+        get: operations["auth.activity_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/auth/sessions/{session_id}": {
         parameters: {
             query?: never;
@@ -1523,6 +1540,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/projects/{project_id}/database/backups/{backup_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Paid plan, owners only: a kept backup's file, as base64, in pg_dump's custom format that pg_restore reads. Console only, as DATABASE_URL is. */
+        get: operations["app_db.backup_download"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/projects/{project_id}/cron-jobs": {
         parameters: {
             query?: never;
@@ -1557,6 +1591,23 @@ export interface paths {
         head?: never;
         /** @description Change a cron job's schedule, timezone or path, or pause and resume it. */
         patch: operations["cron.update"];
+        trace?: never;
+    };
+    "/v1/cron-jobs/{cron_job_id}/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Paid plan: send one fire of a cron job now, waking the app as its schedule does, and wait for the app's answer. Its next time stays. */
+        post: operations["cron.run_now"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/v1/projects/{project_id}/test-runs": {
@@ -1671,7 +1722,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Show what the files of all a workspace's apps take together, and the cap its plan sets on them. */
+        /** @description Show what the files of all a workspace's apps take together, and the cap its plan sets on them. Name a project to count its own files too. */
         get: operations["storage.usage_get"];
         put?: never;
         post?: never;
@@ -1911,7 +1962,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description List a workspace's latest 200 credit entries, newest first. */
+        /** @description List a workspace's credit entries, newest first, 200 at a time, each agent run's entries naming the run. Pass the last entry's id as `before` for the next page. */
         get: operations["credit.ledger_list"];
         put?: never;
         post?: never;
@@ -2168,6 +2219,23 @@ export interface paths {
         };
         /** @description Show a workspace's plan, Free or Paid: price, card, renewal or end, a failed renewal's fix-by date, withdrawal deadlines and any unpaid payment page. */
         get: operations["billing.get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{workspace_id}/billing/payments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description List what a workspace paid Scaffold, newest first: plan payments, top-ups and their refunds, each with its date, amount and what it paid for. */
+        get: operations["billing.payment_list"];
         put?: never;
         post?: never;
         delete?: never;
@@ -5241,6 +5309,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/webhooks/{endpoint_id}/resend-failed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Try every delivery to a webhook endpoint that failed for good again now, with the same event ids and bodies. Those tried 26 times are left. */
+        post: operations["webhook.endpoint_resend_failed"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/webhooks/{endpoint_id}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Post a signed ping event to a webhook endpoint now, also one that is off, and log it as a delivery with what the endpoint answered. It is not retried. */
+        post: operations["webhook.endpoint_test"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/webhooks/{endpoint_id}/secret": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Replace a webhook endpoint's signing secret, shown once. Every POST from now on is signed with the new one, retries of earlier events too. */
+        post: operations["webhook.endpoint_secret_rotate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/projects/{project_id}/alerts": {
         parameters: {
             query?: never;
@@ -6243,6 +6362,8 @@ export interface components {
             subscription?: components["schemas"]["Subscription"] | null;
             /** @description What the workspace uses of what its plan limits. Answers logged before it read none. @default { "badge": false, "build_minutes": { "frees_at": null, "limit": null, "used": 0 }, "custom_domains": { "frees_at": null, "limit": null, "used": 0 }, "deploys_today": { "frees_at": null, "limit": null, "used": 0 }, "paid_build_minutes": 0, "projects": { "frees_at": null, "limit": null, "used": 0 }, "sleep_after_idle_secs": 0 } */
             usage?: components["schemas"]["PlanUsage"];
+            /** @description Top-ups charged to the saved card whose bank has not answered yet, oldest first, so the console can say a charge may still be taken once the top-up dialog is closed. @default [] */
+            waiting_top_ups?: components["schemas"]["TopUp"][];
             /**
              * @description The payment whose dispute the refunds of the workspace's withdrawal wait for, as
              *     billing.withdraw answered. None once the dispute ends and the withdrawal finishes.
@@ -6733,6 +6854,8 @@ export interface components {
             note: string;
             recorded_at: string;
             reservation_id?: components["schemas"]["ReservationId"] | null;
+            /** @description On a hold, settlement or release for an agent run, the run. */
+            run?: components["schemas"]["LedgerRun"] | null;
             /** @description On a settlement for a model call, what the call used and the prices it was charged at. */
             usage?: components["schemas"]["Charge"] | null;
         };
@@ -6763,7 +6886,7 @@ export interface components {
             finished_at?: string | null;
             id: components["schemas"]["CronFireId"];
             outcome: components["schemas"]["CronFireOutcome"];
-            /** @description The time the schedule named. */
+            /** @description The time the schedule named, or when cron.run_now sent it. */
             scheduled_at: string;
             /**
              * Format: uint16
@@ -6826,6 +6949,11 @@ export interface components {
             archived_at?: string | null;
             archived_by?: components["schemas"]["Editor"] | null;
             created_at: string;
+            /**
+             * @description When an archived database is erased unless restored first. None while it is live.
+             * @default null
+             */
+            erase_after?: string | null;
             /** @description Every field, archived ones included, oldest first. */
             fields: components["schemas"]["Field"][];
             id: components["schemas"]["DatabaseId"];
@@ -7378,7 +7506,7 @@ export interface components {
             invite_id: components["schemas"]["InviteId"];
             invited_by: components["schemas"]["PersonId"];
         };
-        /** @description A zip of a workspace: its logo, members with when each last acted, projects with the app source uploaded to each, the files its app stored and a gzipped SQL dump of its database, env var names without secret values, every database with its views, records with their history and comments, every page and the change history. */
+        /** @description A zip of a workspace: its logo, members with when each last acted, projects with the app source uploaded to each, the files its app stored and a gzipped SQL dump of its database, env var names without secret values, every database with its views, records with their history and comments, every page, the change history, and what it paid Scaffold with its credit ledger. */
         Export: {
             /** @description When the download ends, 24 hours after it is ready. */
             expires_at?: string | null;
@@ -7864,6 +7992,13 @@ export interface components {
             id: components["schemas"]["DeployId"];
             status: components["schemas"]["DeployStatus"];
         };
+        /** @description The agent run a ledger entry paid for. */
+        LedgerRun: {
+            agent: components["schemas"]["AgentKind"];
+            run_id: components["schemas"]["RunId"];
+            /** @description The start of its prompt. None once the person who started it is erased. */
+            title?: string | null;
+        };
         /** @description The secret at the end of an emailed link. */
         LinkInput: {
             token: string;
@@ -8229,6 +8364,8 @@ export interface components {
              *     the project was deleted or left the workspace.
              */
             backup?: components["schemas"]["AppDbBackupNotice"] | null;
+            /** Format: int64 @description A low balance, running out or a top-up request: the workspace's balance in millicredits when it last happened. None for one raised before the balance was recorded. @default null */
+            balance?: number | null;
             /** @description For a mention in a comment, the comment as it is now. None once it was deleted. */
             comment?: components["schemas"]["Comment"] | null;
             /** @description Credits only: the month's spend and cap when it last crossed three quarters. */
@@ -8533,6 +8670,10 @@ export interface components {
             status: components["schemas"]["ProposalStatus"];
         };
         PageProposalId: string;
+        PaidPeriod: {
+            end: string;
+            start: string;
+        };
         PasskeyAdded: {
             name: string;
             passkey_id: components["schemas"]["PasskeyId"];
@@ -8614,6 +8755,23 @@ export interface components {
             status: components["schemas"]["WebhookDeliveryStatus"];
             /** @description Oldest first, resends included. */
             tries: components["schemas"]["WebhookTry"][];
+        };
+        /** @enum {string} */
+        PaymentKind: "plan" | "top_up" | "refund";
+        /** @description A payment the workspace made to Scaffold, or a refund of one. */
+        PaymentRecord: {
+            /** @description Tax included. None for payments Scaffold recorded before it kept amounts. */
+            amount?: components["schemas"]["Money"] | null;
+            /** @description When it was paid, or when Scaffold learned of the refund. */
+            at: string;
+            kind: components["schemas"]["PaymentKind"];
+            /**
+             * Format: int64
+             * @description The credits a top-up, or the refund of one, was for.
+             */
+            millicredits?: number | null;
+            /** @description The plan period a plan payment, or the refund of one, paid for. */
+            period?: components["schemas"]["PaidPeriod"] | null;
         };
         PaymentRecorded: {
             /**
@@ -8945,6 +9103,8 @@ export interface components {
             suspended: boolean;
         };
         ProjectSummary: {
+            /** @description When the alert firing now fired, which project.alert_get shows. None while none fires. */
+            alert_firing_since?: string | null;
             /**
              * @description When its claim link expires, while one is open.
              * @default null
@@ -9716,7 +9876,7 @@ export interface components {
             refusal?: components["schemas"]["RunRefusal"] | null;
         };
         /** @description A check that refuses a run's hold, in the order `run.create` runs them. */
-        RunRefusal: "agent_limit" | "credits" | "monthly_cap" | "daily_limit";
+        RunRefusal: "agent_limit" | "credits" | "monthly_cap" | "daily_limit" | "workspace_daily_limit";
         /** @description One model call of a run, summed up as the console lists it. */
         RunStep: {
             /** Format: int64 */
@@ -9883,6 +10043,14 @@ export interface components {
             id: components["schemas"]["SessionId"];
             person_id: components["schemas"]["PersonId"];
         };
+        SessionDevice: {
+            browser?: string | null;
+            city?: string | null;
+            /** @description An ISO 3166-1 alpha-2 code, like `PT`. */
+            country?: string | null;
+            kind: components["schemas"]["DeviceKind"];
+            os?: string | null;
+        };
         SessionEnded: {
             ended_at: string;
             ended_session_id: components["schemas"]["AppSessionId"];
@@ -9958,6 +10126,19 @@ export interface components {
              */
             visible_fields?: components["schemas"]["FieldId"][];
         };
+        /** @description Something that changed how the person signs in, as their Security page lists it. */
+        SignInActivity: {
+            at: string;
+            /** @description Where the session that signed in or out started. None for other activity. */
+            device?: components["schemas"]["SessionDevice"] | null;
+            kind: components["schemas"]["SignInActivityKind"];
+            /** @description The second factor (`totp` or `passkey`) or provider (`github` or `google`) it was about. */
+            method?: string | null;
+            /** @description Why a session ended. */
+            reason?: components["schemas"]["EndReason"] | null;
+        };
+        /** @enum {string} */
+        SignInActivityKind: "signed_in" | "signed_out" | "password_reset" | "email_changed" | "second_factor_added" | "second_factor_removed" | "recovery_codes_replaced" | "provider_linked" | "provider_unlinked";
         SignInEventId: string;
         SignInInput: {
             email: string;
@@ -10274,6 +10455,8 @@ export interface components {
             /** Format: int64 */
             cap_bytes: number;
             plan: components["schemas"]["Plan"];
+            /** Format: int64 @description What the files of the project asked about take, of `stored_bytes`. None when no project was named. */
+            project_bytes?: number | null;
             /** Format: int64 */
             stored_bytes: number;
             workspace_id: components["schemas"]["WorkspaceId"];
@@ -11097,6 +11280,8 @@ export interface components {
             code?: string | null;
             /** @description A passkey's answer to the options from `auth.sign_in`, `auth.sign_in_passkey_start` or `auth.passkey_check_start`. @default null */
             passkey?: components["schemas"]["PasskeyAnswer"] | null;
+            /** @description Skip the second factor on this browser for 30 days, until the password is reset, two-factor is turned off or every other session is signed out. @default false */
+            trust_browser?: boolean;
         };
         VersionInput: {
             /**
@@ -11224,7 +11409,7 @@ export interface components {
         WebhookEndpointId: string;
         WebhookEventId: string;
         /** @description What happened in a project, posted to the endpoints that take its type. */
-        WebhookEventType: "deploy.live" | "deploy.failed" | "deploy.rolled_back" | "app_user.signed_up" | "app_user.deleted";
+        WebhookEventType: "deploy.live" | "deploy.failed" | "deploy.rolled_back" | "app_user.signed_up" | "app_user.deleted" | "ping";
         /** @description An endpoint Scaffold turned off, as its inbox row shows it now. */
         WebhookNotice: {
             /** @description Whether someone turned it on again since. */
@@ -11235,6 +11420,20 @@ export interface components {
             project_id: components["schemas"]["ProjectId"];
             project_name: string;
             project_slug: string;
+        };
+        /** @description What webhook.endpoint_resend_failed queued. */
+        WebhookResent: {
+            endpoint_id: components["schemas"]["WebhookEndpointId"];
+            /**
+             * Format: uint32
+             * @description The failed deliveries now trying again.
+             */
+            resent: number;
+            /**
+             * Format: uint32
+             * @description The failed deliveries left as they are, tried 26 times already, the most one is.
+             */
+            skipped: number;
         };
         WebhookTry: {
             at: string;
@@ -11595,6 +11794,53 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SessionInfo"][];
+                };
+            };
+            /** @description No valid credential. When the console session of the cookie ended, `details` say why and when. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnauthorizedBody"];
+                };
+            };
+            /** @description Over a rate limit. Retry after the seconds in `Retry-After`. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Every failed request answers with this body. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "auth.activity_list": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description What the command answers. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SignInActivity"][];
                 };
             };
             /** @description No valid credential. When the console session of the cookie ended, `details` say why and when. */
@@ -16793,6 +17039,57 @@ export interface operations {
             };
         };
     };
+    "app_db.backup_download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A backup app_db.backup_list shows, of this project. */
+                backup_id: components["schemas"]["SnapshotId"];
+                project_id: components["schemas"]["ProjectRef"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The backup in pg_dump's custom format, which pg_restore reads. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": string;
+                };
+            };
+            /** @description No valid credential. When the console session of the cookie ended, `details` say why and when. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnauthorizedBody"];
+                };
+            };
+            /** @description Over a rate limit. Retry after the seconds in `Retry-After`. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Every failed request answers with this body. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
     "cron.list": {
         parameters: {
             query?: never;
@@ -16973,6 +17270,60 @@ export interface operations {
                 "application/json": components["schemas"]["CronJobChanges"];
             };
         };
+        responses: {
+            /** @description What the command answers. */
+            200: {
+                headers: {
+                    /** @description The `command_id` of the write that answered, as `change.list` shows its changes. Pass it to `record.undo` or `credit.settle`. A retry under the same Idempotency-Key answers with the first run's. */
+                    "Scaffold-Command-Id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CronJob"];
+                };
+            };
+            /** @description No valid credential. When the console session of the cookie ended, `details` say why and when. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnauthorizedBody"];
+                };
+            };
+            /** @description Over a rate limit. Retry after the seconds in `Retry-After`. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Every failed request answers with this body. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "cron.run_now": {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Retrying with the same key within 24 hours returns the first result; after that the key is forgotten and the request runs again. The same key with another request answers 422 idempotency_key_reused. A command whose secret is shown only once answers 409 secret_shown instead, naming any token it created, and never shows the secret again. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                cron_job_id: components["schemas"]["CronJobId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
         responses: {
             /** @description What the command answers. */
             200: {
@@ -17516,7 +17867,10 @@ export interface operations {
     };
     "storage.usage_get": {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description A project of the workspace, whose own files are counted too. */
+                project_id?: components["schemas"]["ProjectRef"];
+            };
             header?: never;
             path: {
                 workspace_id: components["schemas"]["WorkspaceId"];
@@ -18369,7 +18723,10 @@ export interface operations {
     };
     "credit.ledger_list": {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description Only entries older than this one, for the next page. */
+                before?: components["schemas"]["EntryId"];
+            };
             header?: never;
             path: {
                 workspace_id: components["schemas"]["WorkspaceId"];
@@ -19216,6 +19573,55 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Billing"];
+                };
+            };
+            /** @description No valid credential. When the console session of the cookie ended, `details` say why and when. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnauthorizedBody"];
+                };
+            };
+            /** @description Over a rate limit. Retry after the seconds in `Retry-After`. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Every failed request answers with this body. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "billing.payment_list": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: components["schemas"]["WorkspaceId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description What the command answers. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaymentRecord"][];
                 };
             };
             /** @description No valid credential. When the console session of the cookie ended, `details` say why and when. */
@@ -30175,6 +30581,177 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UnauthorizedBody"];
+                };
+            };
+            /** @description Over a rate limit. Retry after the seconds in `Retry-After`. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Every failed request answers with this body. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "webhook.endpoint_resend_failed": {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Retrying with the same key within 24 hours returns the first result; after that the key is forgotten and the request runs again. The same key with another request answers 422 idempotency_key_reused. A command whose secret is shown only once answers 409 secret_shown instead, naming any token it created, and never shows the secret again. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                endpoint_id: components["schemas"]["WebhookEndpointId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description What the command answers. */
+            200: {
+                headers: {
+                    /** @description The `command_id` of the write that answered, as `change.list` shows its changes. Pass it to `record.undo` or `credit.settle`. A retry under the same Idempotency-Key answers with the first run's. */
+                    "Scaffold-Command-Id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebhookResent"];
+                };
+            };
+            /** @description No valid credential. When the console session of the cookie ended, `details` say why and when. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnauthorizedBody"];
+                };
+            };
+            /** @description Over a rate limit. Retry after the seconds in `Retry-After`. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Every failed request answers with this body. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "webhook.endpoint_test": {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Retrying with the same key within 24 hours returns the first result; after that the key is forgotten and the request runs again. The same key with another request answers 422 idempotency_key_reused. A command whose secret is shown only once answers 409 secret_shown instead, naming any token it created, and never shows the secret again. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                endpoint_id: components["schemas"]["WebhookEndpointId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description What the command answers. */
+            200: {
+                headers: {
+                    /** @description The `command_id` of the write that answered, as `change.list` shows its changes. Pass it to `record.undo` or `credit.settle`. A retry under the same Idempotency-Key answers with the first run's. */
+                    "Scaffold-Command-Id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebhookDelivery"];
+                };
+            };
+            /** @description No valid credential. When the console session of the cookie ended, `details` say why and when. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnauthorizedBody"];
+                };
+            };
+            /** @description Over a rate limit. Retry after the seconds in `Retry-After`. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Every failed request answers with this body. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "webhook.endpoint_secret_rotate": {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Retrying with the same key within 24 hours returns the first result; after that the key is forgotten and the request runs again. The same key with another request answers 422 idempotency_key_reused. A command whose secret is shown only once answers 409 secret_shown instead, naming any token it created, and never shows the secret again. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                endpoint_id: components["schemas"]["WebhookEndpointId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description What the command answers. */
+            200: {
+                headers: {
+                    /** @description The `command_id` of the write that answered, as `change.list` shows its changes. Pass it to `record.undo` or `credit.settle`. A retry under the same Idempotency-Key answers with the first run's. */
+                    "Scaffold-Command-Id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WebhookEndpointCreated"];
+                };
+            };
+            /** @description No valid credential. When the console session of the cookie ended, `details` say why and when. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnauthorizedBody"];
+                };
+            };
+            /** @description A retry under the Idempotency-Key of a run that succeeded answers `secret_shown`, as its secret is shown only once. `details` names what that run created. Any other 409 answers `conflict`, without `details`. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SecretShownBody"];
                 };
             };
             /** @description Over a rate limit. Retry after the seconds in `Retry-After`. */
