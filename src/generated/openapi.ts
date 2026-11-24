@@ -2499,6 +2499,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/workspaces/{workspace_id}/billing/given-plan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Platform only: give a workspace the Paid plan without a subscription, until ends_at or until taken back, with the monthly price's credits each month. Given again while it lasts, it keeps running with the new end and reason. Stripe never removes it. */
+        post: operations["billing.plan_give"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{workspace_id}/billing/given-plan/take-back": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Platform only: end the Paid plan Scaffold gave a workspace now. Without a subscription that pays, it moves to Free as when a subscription ends. Changes nothing when no given plan lasts. */
+        post: operations["billing.plan_take_back"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/workspaces/{workspace_id}/changes": {
         parameters: {
             query?: never;
@@ -6634,6 +6668,8 @@ export interface components {
              * @default []
              */
             ended_top_up_withdrawals?: components["schemas"]["EndedTopUpWithdrawal"][];
+            /** @description The Paid plan Scaffold gave the workspace, while it lasts. Answers logged before it read none. @default null */
+            given?: components["schemas"]["GivenPlan"] | null;
             plan: components["schemas"]["Plan"];
             /** @description The subscription that pays for the plan, else the latest one. None if there never was one. */
             subscription?: components["schemas"]["Subscription"] | null;
@@ -7945,6 +7981,12 @@ export interface components {
             /** @description The secret from the invite link. */
             secret: string;
         };
+        /** @description The body half of `billing.plan_give`'s input. */
+        Gift: {
+            /** @default null */
+            ends_at?: string | null;
+            reason: components["schemas"]["GiveReason"];
+        };
         /** @description The body half of `github.branch_set`'s input. */
         GitHubBranch: {
             branch: string;
@@ -8054,6 +8096,20 @@ export interface components {
             project_id: components["schemas"]["ProjectId"];
             /** @description The newest 10, newest first. */
             pushes: components["schemas"]["GitHubPush"][];
+        };
+        /**
+         * @description Why Scaffold gave a workspace the Paid plan: a fixed word, since it is kept in an event.
+         * @enum {string}
+         */
+        GiveReason: "team" | "friend" | "giveaway" | "goodwill";
+        /** @description The Paid plan Scaffold gave a workspace without a subscription. */
+        GivenPlan: {
+            /** @description When it ends by itself. None while it lasts until Scaffold takes it back. */
+            ends_at?: string | null;
+            given_at: string;
+            /** Format: int64 @description Millicredits it grants each month, as the monthly price's `allowance_credits` metadata said when it was given. None grants none. */
+            monthly_allowance?: number | null;
+            reason: components["schemas"]["GiveReason"];
         };
         Grant: {
             access: components["schemas"]["Access"];
@@ -20796,6 +20852,119 @@ export interface operations {
             path: {
                 /** @description The Stripe Customer whose newest subscription to read again. */
                 customer_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description What the command answers. */
+            200: {
+                headers: {
+                    /** @description The `command_id` of the write that answered, as `change.list` shows its changes. Pass it to `record.undo` or `credit.settle`. A retry under the same Idempotency-Key answers with the first run's. */
+                    "Scaffold-Command-Id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Billing"];
+                };
+            };
+            /** @description No valid credential. When the console session of the cookie ended, `details` say why and when. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnauthorizedBody"];
+                };
+            };
+            /** @description Over a rate limit. Retry after the seconds in `Retry-After`. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Every failed request answers with this body. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "billing.plan_give": {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Retrying with the same key within 24 hours returns the first result; after that the key is forgotten and the request runs again. The same key with another request answers 422 idempotency_key_reused. A command whose secret is shown only once answers 409 secret_shown instead, naming any token it created, and never shows the secret again. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                workspace_id: components["schemas"]["WorkspaceId"];
+            };
+            cookie?: never;
+        };
+        /** @description The body half of `billing.plan_give`'s input. */
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Gift"];
+            };
+        };
+        responses: {
+            /** @description What the command answers. */
+            200: {
+                headers: {
+                    /** @description The `command_id` of the write that answered, as `change.list` shows its changes. Pass it to `record.undo` or `credit.settle`. A retry under the same Idempotency-Key answers with the first run's. */
+                    "Scaffold-Command-Id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Billing"];
+                };
+            };
+            /** @description No valid credential. When the console session of the cookie ended, `details` say why and when. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnauthorizedBody"];
+                };
+            };
+            /** @description Over a rate limit. Retry after the seconds in `Retry-After`. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Every failed request answers with this body. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "billing.plan_take_back": {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Retrying with the same key within 24 hours returns the first result; after that the key is forgotten and the request runs again. The same key with another request answers 422 idempotency_key_reused. A command whose secret is shown only once answers 409 secret_shown instead, naming any token it created, and never shows the secret again. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                workspace_id: components["schemas"]["WorkspaceId"];
             };
             cookie?: never;
         };
