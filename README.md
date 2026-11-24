@@ -59,14 +59,10 @@ const scaffold = new Scaffold();
 const workspace_id = process.env.SCAFFOLD_WORKSPACE;
 if (!workspace_id) throw new Error("Set SCAFFOLD_WORKSPACE to your workspace id, from Settings, then Workspace");
 
-// Plan: tasks live in a Tasks database, so make one and put the work on its board. Within
-// 24 hours, the keys make a second run answer the same board and task instead of adding more.
-const board = await scaffold.database.create(
-  { workspace_id, name: "Tasks", template: "tasks" },
-  { idempotencyKey: `quickstart-board-${workspace_id}` },
-);
+// Plan: put the work on the board of the Tasks database every workspace starts with. Within
+// 24 hours, the key makes a second run answer the same task instead of adding another.
 const task = await scaffold.task.create(
-  { workspace_id, database_id: board.id, title: "Ship the booking page", status: "doing", labels: ["launch"] },
+  { workspace_id, title: "Ship the booking page", status: "doing", labels: ["launch"] },
   { idempotencyKey: `quickstart-task-${workspace_id}` },
 );
 console.log(`Task ${task.key} is on the board`);
