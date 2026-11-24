@@ -1083,7 +1083,7 @@ export interface paths {
         /** @description List a workspace's projects, leaving out deleted ones. */
         get: operations["project.list"];
         put?: never;
-        /** @description Create a project in a workspace. Refused while a deleted one with the slug can be restored, unless ignore_restorable. A Free workspace holds 2 projects; server templates need the Paid plan. */
+        /** @description Create a project in a workspace. Refused while a deleted one with the slug can be restored, unless ignore_restorable. A Free workspace holds 2 projects; server templates need the Paid plan. The static template starts with a starter page showing the project's name as its first upload, so deploy.create puts it live with nothing uploaded. */
         post: operations["project.create"];
         delete?: never;
         options?: never;

@@ -396,7 +396,7 @@ export interface Methods {
     member_remove(input: operations["workspace.member_remove"]["parameters"]["path"], options?: WriteOptions): Promise<operations["workspace.member_remove"]["responses"][200]["content"]["application/json"]>;
   };
   project: {
-    /** Create a project in a workspace. Refused while a deleted one with the slug can be restored, unless ignore_restorable. A Free workspace holds 2 projects; server templates need the Paid plan. `POST /v1/projects` */
+    /** Create a project in a workspace. Refused while a deleted one with the slug can be restored, unless ignore_restorable. A Free workspace holds 2 projects; server templates need the Paid plan. The static template starts with a starter page showing the project's name as its first upload, so deploy.create puts it live with nothing uploaded. `POST /v1/projects` */
     create(input: NonNullable<operations["project.create"]["requestBody"]>["content"]["application/json"], options?: WriteOptions): Promise<operations["project.create"]["responses"][200]["content"]["application/json"]>;
     /** List a workspace's projects, leaving out deleted ones. `GET /v1/projects` */
     list(input: NonNullable<operations["project.list"]["parameters"]["query"]>): List<operations["project.list"]["responses"][200]["content"]["application/json"], operations["project.list"]["responses"][200]["content"]["application/json"]["data"][number]>;
