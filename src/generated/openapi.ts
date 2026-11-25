@@ -699,6 +699,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/admin/find": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Admin only: find up to 20 people by part of their name or email, and up to 20 workspaces by part of their name or slug, or either by its id. Records that this admin looked and how many it found, never what was searched. */
+        post: operations["admin.find"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/people/{person_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Admin only: show a person's account: their name, email and support requests, and each workspace they belong to with its plan, credits, payments and apps. Records that this admin looked at them. */
+        post: operations["admin.person_get"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/workspaces/{workspace_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Admin only: show a workspace's account: its owner, plan, credits, payments and apps. Records that this admin looked at it. */
+        post: operations["admin.workspace_get"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/admin/activity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Admin only: list what admins looked at and did through admin commands, across every workspace, newest first, 100 at a time. */
+        get: operations["admin.activity_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/account/terms-accept": {
         parameters: {
             query?: never;
@@ -4700,7 +4768,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** @description Show your setup checklist in a workspace and what ticked each step. */
+        /** @description Show your setup checklist in a workspace, what ticked each step and what onboarding.starter_create made there. */
         get: operations["onboarding.get"];
         put?: never;
         post?: never;
@@ -4739,6 +4807,24 @@ export interface paths {
         /** @description Bring back a skipped setup step. */
         post: operations["onboarding.step_resume"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/workspaces/{workspace_id}/onboarding/starter": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description The console's first run: fill a workspace once with a Static site project, five starter tasks and a Launch plan page holding the person's answer to What are you building, or a generic set without one. The project is one of the 2 a Free workspace holds. Deploys nothing. Called again, it answers what is there and makes nothing. */
+        post: operations["onboarding.starter_create"];
+        /** @description Remove what onboarding.starter_create made that nobody changed since: untouched tasks and page are archived and a project never deployed or added to is deleted, each restorable as usual. Changed parts stay, so the workspace can be filled again. */
+        delete: operations["onboarding.starter_remove"];
         options?: never;
         head?: never;
         patch?: never;
@@ -5916,9 +6002,97 @@ export interface components {
             name: string;
             person_id: components["schemas"]["PersonId"];
         };
+        /** @description A look or an action an admin took through an admin command. */
+        AdminActivity: {
+            admin_id: components["schemas"]["PersonId"];
+            /** @description None once the admin is erased. */
+            admin_name?: string | null;
+            /** @description The admin command, like `admin.person_get`. */
+            command: string;
+            /** @description What it recorded, like `person.admin_looked` or `person.admin_added`. */
+            kind: string;
+            /** @description The person it was about. */
+            person_id?: components["schemas"]["PersonId"] | null;
+            /**
+             * Format: int64
+             * @description Increases with every change on the platform. Pass it as `before` for older entries.
+             */
+            position: number;
+            recorded_at: string;
+            /**
+             * Format: int64
+             * @description How many people and workspaces a find showed.
+             */
+            results?: number | null;
+            /** @description `console`, or `cli` from the host through `scaffold run --as`. */
+            via: components["schemas"]["ChangeViaKind"];
+            /** @description The workspace it was about. */
+            workspace_id?: components["schemas"]["WorkspaceId"] | null;
+        };
         AdminAddInput: {
             /** @description A person with a verified email and a passkey. */
             person_id: components["schemas"]["PersonId"];
+        };
+        AdminApp: {
+            /** @description None before its first deploy. */
+            latest_deploy?: components["schemas"]["AdminDeploy"] | null;
+            name: string;
+            project_id: components["schemas"]["ProjectId"];
+            slug: string;
+        };
+        AdminDeploy: {
+            created_at: string;
+            deploy_id: components["schemas"]["DeployId"];
+            /** @description When it stopped being live, or failed. */
+            ended_at?: string | null;
+            live_at?: string | null;
+            status: components["schemas"]["DeployStatus"];
+        };
+        AdminFindInput: {
+            /**
+             * @description Part of a person's name or email or of a workspace's name or slug, in any case, or a
+             *     person's or workspace's id.
+             */
+            query: string;
+        };
+        /** @description Up to 20 people and 20 workspaces, each by name. */
+        AdminFound: {
+            people: components["schemas"]["AdminFoundPerson"][];
+            workspaces: components["schemas"]["AdminFoundWorkspace"][];
+        };
+        AdminFoundMembership: {
+            name: string;
+            role: components["schemas"]["Role"];
+            slug: string;
+            workspace_id: components["schemas"]["WorkspaceId"];
+        };
+        AdminFoundPerson: {
+            email: string;
+            name: string;
+            person_id: components["schemas"]["PersonId"];
+            workspaces: components["schemas"]["AdminFoundMembership"][];
+        };
+        AdminFoundWorkspace: {
+            name: string;
+            /** @description None once its owner is erased. */
+            owner?: components["schemas"]["AdminWorkspaceOwner"] | null;
+            plan: components["schemas"]["Plan"];
+            slug: string;
+            workspace_id: components["schemas"]["WorkspaceId"];
+        };
+        /** @description Every amount is in millicredits. */
+        AdminLedgerEntry: {
+            entry_id: components["schemas"]["EntryId"];
+            /** @description grant, top_up, reserve, settle, release, claw_back or expire. */
+            kind: string;
+            /** Format: int64 */
+            millicredits: number;
+            note: string;
+            recorded_at: string;
+        };
+        AdminMembership: {
+            account: components["schemas"]["AdminWorkspace"];
+            role: components["schemas"]["Role"];
         };
         AdminPasskeyCheckStartInput: {
             /** @description The admin command the answer is for, one that asks for a passkey. */
@@ -5931,6 +6105,24 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        /** @description A person's account as an admin sees it to answer them. */
+        AdminPerson: {
+            email: string;
+            /**
+             * Format: int64
+             * @description How many more workspaces they belong to than those shown.
+             */
+            more_workspaces: number;
+            name: string;
+            person_id: components["schemas"]["PersonId"];
+            /** @description The 50 newest they sent signed in. Scaffold keeps no text of them. */
+            support_requests: components["schemas"]["AdminSupportRequest"][];
+            /**
+             * @description The 20 they joined last, newest first, deleted ones until they are erased, sandboxes
+             *     aside.
+             */
+            workspaces: components["schemas"]["AdminMembership"][];
+        };
         /** @description The body half of `admin.remove`'s input. */
         AdminRemoveBody: {
             /** @default null */
@@ -5940,6 +6132,19 @@ export interface components {
             admin_removed_at: string;
             person_id: components["schemas"]["PersonId"];
         };
+        /**
+         * @description A request a person sent signed in, as an admin sees it beside their account. It holds no
+         *     text: Scaffold keeps none once the request is emailed.
+         */
+        AdminSupportRequest: {
+            created_at: string;
+            origin: components["schemas"]["SupportRequestOrigin"];
+            /** @description What the person quotes, like SUP-1042. */
+            reference: string;
+            request_id: components["schemas"]["SupportRequestId"];
+            /** @description None for one from the console's help panel, which asks for no topic. */
+            topic?: components["schemas"]["Topic"] | null;
+        };
         /** @description Until when this console session runs admin commands in this browser. */
         AdminUnlock: {
             /** @description Null while the session is locked, or unlocked in another browser. */
@@ -5948,6 +6153,25 @@ export interface components {
         AdminUnlockInput: {
             /** @description The answer to the check `admin.passkey_check_start` opened for `admin.unlock` in this session. @default null */
             passkey?: components["schemas"]["PasskeyAnswer"] | null;
+        };
+        /** @description A workspace's plan, credits, payments and apps, as the platform recorded them. */
+        AdminWorkspace: {
+            /** @description Its projects not deleted, oldest first. */
+            apps: components["schemas"]["AdminApp"][];
+            billing: components["schemas"]["Billing"];
+            credits: components["schemas"]["CreditBalance"];
+            /** @description The 20 newest, newest first. */
+            ledger: components["schemas"]["AdminLedgerEntry"][];
+            /** @description None once its owner is erased. */
+            owner?: components["schemas"]["AdminWorkspaceOwner"] | null;
+            /** @description The 20 newest, newest first. */
+            payments: components["schemas"]["PaymentRecord"][];
+            workspace: components["schemas"]["Workspace"];
+        };
+        AdminWorkspaceOwner: {
+            email: string;
+            name: string;
+            person_id: components["schemas"]["PersonId"];
         };
         Agent: {
             /** @description Which agent it is, as `run.create` names it. */
@@ -8958,6 +9182,11 @@ export interface components {
              *     this workspace, when they approved it for another workspace instead.
              */
             signed_in_elsewhere?: components["schemas"]["OnboardingSignedInElsewhere"] | null;
+            /**
+             * @description What onboarding.starter_create made in the workspace, the same for every member. None
+             *     before it ran and after onboarding.starter_remove, while What are you building waits.
+             */
+            starter?: components["schemas"]["OnboardingStarter"] | null;
             steps: components["schemas"]["OnboardingStep"][];
             workspace_id: components["schemas"]["WorkspaceId"];
         };
@@ -8967,6 +9196,50 @@ export interface components {
             at: string;
             workspace_id: components["schemas"]["WorkspaceId"];
             workspace_name: string;
+        };
+        /** @description What onboarding.starter_create made in the workspace, until onboarding.starter_remove. */
+        OnboardingStarter: {
+            /** @description The answer as the person wrote it. None when they skipped it, or once they were erased. */
+            answer?: string | null;
+            /** @description False when the person skipped the question. */
+            answered: boolean;
+            created_at: string;
+            created_by: components["schemas"]["PersonId"];
+            page: components["schemas"]["OnboardingStarterPage"];
+            project: components["schemas"]["OnboardingStarterProject"];
+            /** @description In the order they were made. */
+            tasks: components["schemas"]["OnboardingStarterTask"][];
+        };
+        OnboardingStarterItems: {
+            page_id?: components["schemas"]["PageId"] | null;
+            project_id?: components["schemas"]["ProjectId"] | null;
+            task_ids: components["schemas"]["TaskId"][];
+        };
+        OnboardingStarterPage: {
+            /** @description False once it was archived. */
+            exists: boolean;
+            id: components["schemas"]["PageId"];
+        };
+        OnboardingStarterProject: {
+            /** @description False once it was deleted or moved to another workspace. */
+            exists: boolean;
+            id: components["schemas"]["ProjectId"];
+            /** @description Whether a deploy of it is live. */
+            live: boolean;
+        };
+        /**
+         * @description What onboarding.starter_remove removed, and what it kept because someone changed it since.
+         *     What was gone already is in neither.
+         */
+        OnboardingStarterRemoved: {
+            kept: components["schemas"]["OnboardingStarterItems"];
+            removed: components["schemas"]["OnboardingStarterItems"];
+            workspace_id: components["schemas"]["WorkspaceId"];
+        };
+        OnboardingStarterTask: {
+            /** @description False once it, or its database, was archived. */
+            exists: boolean;
+            id: components["schemas"]["TaskId"];
         };
         OnboardingStep: {
             /** @description The assistant whose call ticked it. */
@@ -10868,6 +11141,11 @@ export interface components {
              */
             next?: string | null;
         };
+        /** @description The body half of `onboarding.starter_create`'s input. */
+        StarterBody: {
+            /** @description The person's answer to What are you building, at most 280 characters, line breaks read as spaces. Left out, null or blank when they skipped the question. @default null */
+            answer?: string | null;
+        };
         /** @description A statement of reasons with what DSA Art. 17(3) asks of it. */
         Statement: {
             action: components["schemas"]["ModerationAction"];
@@ -11149,6 +11427,11 @@ export interface components {
             request_id: components["schemas"]["SupportRequestId"];
         };
         SupportRequestId: string;
+        /**
+         * @description Where a request was sent from: the site's form or the console's help panel.
+         * @enum {string}
+         */
+        SupportRequestOrigin: "form" | "console";
         /** @description The body half of `project.suspend`'s input. */
         SuspendBody: {
             reason: components["schemas"]["SuspensionReason"];
@@ -14484,6 +14767,211 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PasskeyOptions"];
+                };
+            };
+            /** @description No valid credential. When the console session of the cookie ended, `details` say why and when. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnauthorizedBody"];
+                };
+            };
+            /** @description Over a rate limit. Retry after the seconds in `Retry-After`. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Every failed request answers with this body. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.find": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdminFindInput"];
+            };
+        };
+        responses: {
+            /** @description What the command answers. */
+            200: {
+                headers: {
+                    /** @description The `command_id` of the write that answered, as `change.list` shows its changes. Pass it to `record.undo` or `credit.settle`. A retry under the same Idempotency-Key answers with the first run's. */
+                    "Scaffold-Command-Id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminFound"];
+                };
+            };
+            /** @description No valid credential. When the console session of the cookie ended, `details` say why and when. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnauthorizedBody"];
+                };
+            };
+            /** @description Over a rate limit. Retry after the seconds in `Retry-After`. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Every failed request answers with this body. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.person_get": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                person_id: components["schemas"]["PersonId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description What the command answers. */
+            200: {
+                headers: {
+                    /** @description The `command_id` of the write that answered, as `change.list` shows its changes. Pass it to `record.undo` or `credit.settle`. A retry under the same Idempotency-Key answers with the first run's. */
+                    "Scaffold-Command-Id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminPerson"];
+                };
+            };
+            /** @description No valid credential. When the console session of the cookie ended, `details` say why and when. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnauthorizedBody"];
+                };
+            };
+            /** @description Over a rate limit. Retry after the seconds in `Retry-After`. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Every failed request answers with this body. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.workspace_get": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspace_id: components["schemas"]["WorkspaceId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description What the command answers. */
+            200: {
+                headers: {
+                    /** @description The `command_id` of the write that answered, as `change.list` shows its changes. Pass it to `record.undo` or `credit.settle`. A retry under the same Idempotency-Key answers with the first run's. */
+                    "Scaffold-Command-Id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminWorkspace"];
+                };
+            };
+            /** @description No valid credential. When the console session of the cookie ended, `details` say why and when. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnauthorizedBody"];
+                };
+            };
+            /** @description Over a rate limit. Retry after the seconds in `Retry-After`. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Every failed request answers with this body. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "admin.activity_list": {
+        parameters: {
+            query?: {
+                /** @description Only older entries: the position of the last one shown. */
+                before?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description What the command answers. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminActivity"][];
                 };
             };
             /** @description No valid credential. When the console session of the cookie ended, `details` say why and when. */
@@ -29277,6 +29765,119 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OnboardingChecklist"];
+                };
+            };
+            /** @description No valid credential. When the console session of the cookie ended, `details` say why and when. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnauthorizedBody"];
+                };
+            };
+            /** @description Over a rate limit. Retry after the seconds in `Retry-After`. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Every failed request answers with this body. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "onboarding.starter_create": {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Retrying with the same key within 24 hours returns the first result; after that the key is forgotten and the request runs again. The same key with another request answers 422 idempotency_key_reused. A command whose secret is shown only once answers 409 secret_shown instead, naming any token it created, and never shows the secret again. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                workspace_id: components["schemas"]["WorkspaceId"];
+            };
+            cookie?: never;
+        };
+        /** @description The body half of `onboarding.starter_create`'s input. */
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StarterBody"];
+            };
+        };
+        responses: {
+            /** @description What the command answers. */
+            200: {
+                headers: {
+                    /** @description The `command_id` of the write that answered, as `change.list` shows its changes. Pass it to `record.undo` or `credit.settle`. A retry under the same Idempotency-Key answers with the first run's. */
+                    "Scaffold-Command-Id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnboardingChecklist"];
+                };
+            };
+            /** @description No valid credential. When the console session of the cookie ended, `details` say why and when. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UnauthorizedBody"];
+                };
+            };
+            /** @description Over a rate limit. Retry after the seconds in `Retry-After`. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+            /** @description Every failed request answers with this body. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorBody"];
+                };
+            };
+        };
+    };
+    "onboarding.starter_remove": {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Retrying with the same key within 24 hours returns the first result; after that the key is forgotten and the request runs again. The same key with another request answers 422 idempotency_key_reused. A command whose secret is shown only once answers 409 secret_shown instead, naming any token it created, and never shows the secret again. */
+                "Idempotency-Key"?: string;
+            };
+            path: {
+                workspace_id: components["schemas"]["WorkspaceId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description What the command answers. */
+            200: {
+                headers: {
+                    /** @description The `command_id` of the write that answered, as `change.list` shows its changes. Pass it to `record.undo` or `credit.settle`. A retry under the same Idempotency-Key answers with the first run's. */
+                    "Scaffold-Command-Id": string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OnboardingStarterRemoved"];
                 };
             };
             /** @description No valid credential. When the console session of the cookie ended, `details` say why and when. */

@@ -293,6 +293,8 @@ export const COMMANDS = {
     get: { method: "GET", path: "/v1/workspaces/{workspace_id}/onboarding" },
     step_skip: { method: "POST", path: "/v1/workspaces/{workspace_id}/onboarding/{step}/skip", idempotent: true },
     step_resume: { method: "POST", path: "/v1/workspaces/{workspace_id}/onboarding/{step}/resume", idempotent: true },
+    starter_create: { method: "POST", path: "/v1/workspaces/{workspace_id}/onboarding/starter", idempotent: true },
+    starter_remove: { method: "DELETE", path: "/v1/workspaces/{workspace_id}/onboarding/starter", idempotent: true },
   },
   notification: {
     list: { method: "GET", path: "/v1/workspaces/{workspace_id}/notifications", list: true },
@@ -846,12 +848,16 @@ export interface Methods {
     run_now(input: operations["schedule.run_now"]["parameters"]["path"], options?: WriteOptions): Promise<operations["schedule.run_now"]["responses"][202]["content"]["application/json"]>;
   };
   onboarding: {
-    /** Show your setup checklist in a workspace and what ticked each step. `GET /v1/workspaces/{workspace_id}/onboarding` */
+    /** Show your setup checklist in a workspace, what ticked each step and what onboarding.starter_create made there. `GET /v1/workspaces/{workspace_id}/onboarding` */
     get(input: operations["onboarding.get"]["parameters"]["path"]): Promise<operations["onboarding.get"]["responses"][200]["content"]["application/json"]>;
     /** Put off a setup step that is not done. It still ticks if it happens. `POST /v1/workspaces/{workspace_id}/onboarding/{step}/skip` */
     step_skip(input: operations["onboarding.step_skip"]["parameters"]["path"], options?: WriteOptions): Promise<operations["onboarding.step_skip"]["responses"][200]["content"]["application/json"]>;
     /** Bring back a skipped setup step. `POST /v1/workspaces/{workspace_id}/onboarding/{step}/resume` */
     step_resume(input: operations["onboarding.step_resume"]["parameters"]["path"], options?: WriteOptions): Promise<operations["onboarding.step_resume"]["responses"][200]["content"]["application/json"]>;
+    /** The console's first run: fill a workspace once with a Static site project, five starter tasks and a Launch plan page holding the person's answer to What are you building, or a generic set without one. The project is one of the 2 a Free workspace holds. Deploys nothing. Called again, it answers what is there and makes nothing. `POST /v1/workspaces/{workspace_id}/onboarding/starter` */
+    starter_create(input: operations["onboarding.starter_create"]["parameters"]["path"] & NonNullable<operations["onboarding.starter_create"]["requestBody"]>["content"]["application/json"], options?: WriteOptions): Promise<operations["onboarding.starter_create"]["responses"][200]["content"]["application/json"]>;
+    /** Remove what onboarding.starter_create made that nobody changed since: untouched tasks and page are archived and a project never deployed or added to is deleted, each restorable as usual. Changed parts stay, so the workspace can be filled again. `DELETE /v1/workspaces/{workspace_id}/onboarding/starter` */
+    starter_remove(input: operations["onboarding.starter_remove"]["parameters"]["path"], options?: WriteOptions): Promise<operations["onboarding.starter_remove"]["responses"][200]["content"]["application/json"]>;
   };
   notification: {
     /** List your notifications in a workspace, newest first, by unread or source. `GET /v1/workspaces/{workspace_id}/notifications` */
