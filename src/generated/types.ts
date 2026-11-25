@@ -719,3 +719,4 @@ export type WorkspaceDeleted = components["schemas"]["WorkspaceDeleted"];
 export type WorkspaceId = components["schemas"]["WorkspaceId"];
 export type WorkspaceMembership = components["schemas"]["WorkspaceMembership"];
 export type WorkspaceRef = components["schemas"]["WorkspaceRef"];
+export type ZeroReason = components["schemas"]["ZeroReason"];

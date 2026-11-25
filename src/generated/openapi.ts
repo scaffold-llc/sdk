@@ -7282,6 +7282,11 @@ export interface components {
             /** Format: int64 */
             spent_this_month: number;
             workspace_id: components["schemas"]["WorkspaceId"];
+            /**
+             * @description Why a balance of zero or less is so, as the person asking may be told. Only
+             *     `credit.balance_get` says; other answers leave it out.
+             */
+            zero_reason?: components["schemas"]["ZeroReason"] | null;
         };
         CreditEntry: {
             /** @description On a top-up charged to the saved card, the card. */
@@ -12152,6 +12157,32 @@ export interface components {
         };
         /** @description A workspace's id, or its slug like larkspur. */
         WorkspaceRef: components["schemas"]["WorkspaceId"] | string;
+        ZeroReason: {
+            /** @constant */
+            kind: "verify_email";
+        } | {
+            /** @constant */
+            kind: "starter_elsewhere";
+            workspace_name?: string | null;
+        } | {
+            /** @constant */
+            kind: "inbox_used";
+        } | {
+            /** @constant */
+            kind: "owner_adds";
+        } | {
+            /** @constant */
+            kind: "spent";
+        } | {
+            /** @constant */
+            kind: "expired";
+        } | {
+            /** @constant */
+            kind: "taken_back";
+        } | {
+            /** @constant */
+            kind: "none_yet";
+        };
     };
     responses: never;
     parameters: never;
